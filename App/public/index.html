@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Fromages de France</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IM+Fell+English:ital@0;1&display=swap');
+
+:root {
+  --gold:#c9a84c; --gold2:#e8c97a; --ink:#0f0b06; --parch:#faf6ee;
+  --parch2:#f0e8d5; --rust:#8b3a1a; --cream:#fffdf7;
+  --fs:1;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--ink);}
+
+#app{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;
+  background:var(--ink);overflow:hidden;
+  font-family:'Cormorant Garamond',serif;color:var(--parch);
+}
+
+/* HEADER */
+.header{
+  flex-shrink:0;
+  padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
+  background:var(--ink);
+  border-bottom:1px solid rgba(201,168,76,0.25);
+  text-align:center;
+}
+.header h1{
+  font-family:'IM Fell English',serif;
+  font-size:calc(22px * var(--fs));
+  color:var(--gold);
+  letter-spacing:0.04em;
+}
+.header p{
+  font-size:calc(11px * var(--fs));
+  color:rgba(201,168,76,0.6);
+  margin-top:2px;
+  font-style:italic;
+}
+
+/* SEARCH */
+.search-bar{
+  flex-shrink:0;
+  display:flex;align-items:center;gap:8px;
+  padding:8px 14px;
+  background:var(--ink);
+}
+.search-wrap{position:relative;flex:1;}
+.search-wrap input{
+  width:100%;
+  background:rgba(201,168,76,0.08);
+  border:1px solid rgba(201,168,76,0.25);
+  border-radius:20px;
+  padding:7px 32px 7px 14px;
+  color:var(--parch);
+  font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));
+}
+.search-wrap input::placeholder{color:rgba(201,168,76,0.4);}
+.search-wrap input:focus{outline:none;border-color:var(--gold);}
+.btn-clear{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  display:none;align-items:center;justify-content:center;
+  background:none;border:none;color:var(--gold);font-size:16px;cursor:pointer;
+  width:20px;height:20px;
+}
+
+/* FILTERS */
+.filters{
+  flex-shrink:0;
+  padding:6px 14px;
+  background:var(--ink);
+  border-bottom:1px solid rgba(201,168,76,0.15);
+  overflow-x:auto;
+  white-space:nowrap;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.filters::-webkit-scrollbar{display:none;}
+.chip{
+  display:inline-block;
+  margin-right:6px;
+  padding:4px 12px;
+  border-radius:14px;
+  border:1px solid rgba(201,168,76,0.3);
+  font-size:calc(12px * var(--fs));
+  color:rgba(201,168,76,0.7);
+  cursor:pointer;
+  font-family:'Cormorant Garamond',serif;
+  transition:all 0.2s;
+  background:transparent;
+}
+.chip.active{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:600;}
+
+/* TABS */
+.tabs{
+  flex-shrink:0;
+  display:flex;
+  border-bottom:1px solid rgba(201,168,76,0.2);
+  background:var(--ink);
+}
+.tab{
+  flex:1;padding:9px 4px;
+  text-align:center;
+  font-size:calc(11px * var(--fs));
+  color:rgba(201,168,76,0.5);
+  cursor:pointer;
+  font-family:'Cormorant Garamond',serif;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  border-bottom:2px solid transparent;
+  transition:all 0.2s;
+}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* MAIN */
+.main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* LISTE */
+#panel-liste{
+  padding:10px 14px calc(12px + env(safe-area-inset-bottom));
+}
+.count-bar{
+  font-size:calc(11px * var(--fs));
+  color:rgba(201,168,76,0.5);
+  margin-bottom:10px;
+  font-style:italic;
+}
+.fromage-card{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 12px;
+  margin-bottom:8px;
+  background:rgba(201,168,76,0.06);
+  border:1px solid rgba(201,168,76,0.18);
+  border-radius:10px;
+  cursor:pointer;
+  transition:background 0.15s;
+}
+.fromage-card:active{background:rgba(201,168,76,0.12);}
+.card-avatar{
+  width:52px;height:52px;border-radius:8px;
+  background:rgba(201,168,76,0.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;flex-shrink:0;overflow:hidden;
+}
+.card-avatar img{width:100%;height:100%;object-fit:cover;border-radius:8px;}
+.card-info{flex:1;min-width:0;}
+.card-name{
+  font-family:'IM Fell English',serif;
+  font-size:calc(16px * var(--fs));
+  color:var(--parch);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.card-region{
+  font-size:calc(12px * var(--fs));
+  color:var(--gold);
+  margin-top:2px;
+}
+.card-badges{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;}
+.badge{
+  font-size:calc(10px * var(--fs));
+  padding:1px 7px;border-radius:10px;
+  border:1px solid rgba(201,168,76,0.4);
+  color:rgba(201,168,76,0.8);
+}
+.badge.aop{border-color:rgba(180,60,20,0.6);color:rgba(220,100,60,0.9);}
+
+/* CARTE */
+#panel-carte{
+  height:100%;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#map{width:100%;height:100%;}
+
+/* QUIZ */
+#panel-quiz{
+  padding:16px 14px calc(12px + env(safe-area-inset-bottom));
+}
+.quiz-header{
+  font-family:'IM Fell English',serif;
+  font-size:calc(18px * var(--fs));
+  color:var(--gold);
+  text-align:center;
+  margin-bottom:16px;
+}
+.quiz-score{
+  text-align:center;
+  font-size:calc(13px * var(--fs));
+  color:rgba(201,168,76,0.6);
+  margin-bottom:18px;
+}
+.quiz-question{
+  background:rgba(201,168,76,0.08);
+  border:1px solid rgba(201,168,76,0.2);
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:16px;
+}
+.quiz-img{
+  width:100%;height:140px;
+  border-radius:8px;
+  background:rgba(201,168,76,0.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:64px;
+  margin-bottom:12px;overflow:hidden;
+}
+.quiz-img img{width:100%;height:100%;object-fit:cover;border-radius:8px;}
+.quiz-q{
+  font-size:calc(15px * var(--fs));
+  color:var(--parch);
+  text-align:center;
+  line-height:1.4;
+}
+.quiz-choices{display:flex;flex-direction:column;gap:8px;}
+.quiz-btn{
+  padding:11px 16px;
+  background:rgba(201,168,76,0.07);
+  border:1px solid rgba(201,168,76,0.25);
+  border-radius:10px;
+  color:var(--parch);
+  font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));
+  cursor:pointer;text-align:left;
+  transition:all 0.2s;
+}
+.quiz-btn.correct{background:rgba(40,160,80,0.25);border-color:#28a050;color:#7dda9a;}
+.quiz-btn.wrong{background:rgba(180,40,40,0.2);border-color:#b42828;color:#e07070;}
+.quiz-next{
+  width:100%;margin-top:14px;
+  padding:12px;border-radius:10px;
+  background:var(--gold);color:var(--ink);
+  font-family:'IM Fell English',serif;
+  font-size:calc(16px * var(--fs));
+  font-weight:600;border:none;cursor:pointer;
+  display:none;
+}
+.quiz-restart{
+  width:100%;margin-top:10px;
+  padding:12px;border-radius:10px;
+  background:transparent;color:var(--gold);
+  font-family:'Cormorant Garamond',serif;
+  font-size:calc(14px * var(--fs));
+  border:1px solid var(--gold);cursor:pointer;
+}
+
+/* DETAIL OVERLAY */
+.detail-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:var(--ink);z-index:100;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);
+  transition:transform 0.3s ease;
+}
+.detail-overlay.open{transform:translateX(0);}
+.detail-header{
+  flex-shrink:0;
+  padding:calc(14px + env(safe-area-inset-top)) 16px 12px;
+  background:var(--ink);
+  border-bottom:1px solid rgba(201,168,76,0.2);
+  display:flex;align-items:center;gap:12px;
+}
+.btn-back{
+  background:none;border:none;color:var(--gold);
+  font-size:24px;cursor:pointer;padding:0;flex-shrink:0;
+}
+.detail-title{
+  flex:1;
+  font-family:'IM Fell English',serif;
+  font-size:calc(20px * var(--fs));
+  color:var(--parch);
+}
+.btn-lang{
+  background:none;border:none;cursor:pointer;
+  font-size:22px;flex-shrink:0;
+}
+.detail-body{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.detail-hero{
+  width:100%;height:200px;border-radius:12px;
+  background:rgba(201,168,76,0.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:80px;margin-bottom:16px;
+  overflow:hidden;position:relative;
+}
+.detail-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.d-badge{
+  padding:3px 10px;border-radius:12px;
+  font-size:calc(12px * var(--fs));
+  border:1px solid rgba(201,168,76,0.4);color:rgba(201,168,76,0.9);
+}
+.d-badge.aop{border-color:rgba(180,60,20,0.6);color:rgba(220,100,60,0.9);}
+.detail-section{margin-bottom:14px;}
+.detail-label{
+  font-size:calc(10px * var(--fs));
+  letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:4px;
+  font-family:'Cormorant Garamond',serif;
+}
+.detail-value{
+  font-size:calc(15px * var(--fs));
+  color:var(--parch);line-height:1.5;
+}
+.detail-bio{
+  font-size:calc(14px * var(--fs));
+  color:rgba(250,246,238,0.85);
+  line-height:1.65;font-style:italic;
+}
+.detail-row{
+  display:flex;gap:10px;margin-bottom:14px;
+}
+.detail-row .detail-section{flex:1;}
+.affinage-bar{
+  height:6px;border-radius:3px;
+  background:rgba(201,168,76,0.15);
+  margin-top:6px;overflow:hidden;
+}
+.affinage-fill{
+  height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--gold),var(--gold2));
+}
+
+/* SETTINGS */
+.settings-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:var(--ink);z-index:200;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform 0.3s ease;
+}
+.settings-overlay.open{transform:translateX(0);}
+.settings-header{
+  flex-shrink:0;
+  padding:calc(14px + env(safe-area-inset-top)) 16px 12px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid rgba(201,168,76,0.2);
+}
+.settings-title{
+  font-family:'IM Fell English',serif;
+  font-size:calc(20px * var(--fs));color:var(--gold);
+}
+.settings-body{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.settings-section-title{
+  font-size:calc(10px * var(--fs));
+  letter-spacing:0.12em;text-transform:uppercase;
+  color:rgba(201,168,76,0.5);margin:16px 0 8px;
+}
+.font-btns{display:flex;gap:8px;margin-bottom:12px;}
+.font-btn{
+  padding:7px 16px;border-radius:8px;
+  border:1px solid rgba(201,168,76,0.3);
+  background:transparent;color:var(--gold);
+  font-size:16px;cursor:pointer;
+}
+.apps-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  margin-bottom:16px;
+}
+.app-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;}
+.app-icon{
+  width:56px;height:56px;border-radius:13px;
+  background:rgba(201,168,76,0.1);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.app-icon img{width:56px;height:56px;border-radius:13px;}
+.app-name{font-size:9px;color:rgba(250,246,238,0.6);text-align:center;line-height:1.2;}
+.badge-store{
+  display:block;margin:0 auto 16px;height:40px;
+}
+
+@media (min-width:768px){
+  :root{--fs:1.3;}
+  .header h1{font-size:calc(28px * var(--fs));}
+  .apps-grid{grid-template-columns:repeat(6,1fr);}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <h1 id="ui-title">🧀 Fromages de France</h1>
+    <p id="ui-subtitle">Encyclopédie fromagère</p>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-wrap">
+      <input type="text" id="search-input" placeholder="Rechercher un fromage…">
+      <button class="btn-clear" id="btn-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <button class="btn-lang" id="btn-lang-main" onclick="toggleLang()">🇬🇧</button>
+  </div>
+
+  <div class="filters" id="filters-bar"></div>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-liste" onclick="switchTab('liste',this)">Liste</div>
+    <div class="tab" id="tab-carte" onclick="switchTab('carte',this)">Carte</div>
+    <div class="tab" id="tab-quiz" onclick="switchTab('quiz',this)">Quiz</div>
+    <div class="tab" onclick="openSettings();highlightTab(this)" id="tab-apps">📱</div>
+  </div>
+
+  <div class="main">
+    <div id="panel-liste" class="panel active">
+      <div style="padding:10px 14px 0">
+        <div class="count-bar" id="count-bar"></div>
+      </div>
+      <div style="padding:0 14px calc(12px + env(safe-area-inset-bottom))" id="liste-container"></div>
+    </div>
+    <div id="panel-carte" class="panel">
+      <div id="map"></div>
+    </div>
+    <div id="panel-quiz" class="panel">
+      <div class="quiz-header" id="ui-quiz-header">Quiz Fromages</div>
+      <div class="quiz-score" id="quiz-score"></div>
+      <div id="quiz-container"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-header">
+    <button class="btn-back" onclick="closeDetail()">‹</button>
+    <div class="detail-title" id="d-title"></div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-hero" id="d-hero"><span id="d-emoji"></span></div>
+    <div class="detail-badges" id="d-badges"></div>
+    <div class="detail-row">
+      <div class="detail-section">
+        <div class="detail-label" id="d-label-region">Région</div>
+        <div class="detail-value" id="d-region"></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label" id="d-label-lait">Lait</div>
+        <div class="detail-value" id="d-lait"></div>
+      </div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-section">
+        <div class="detail-label" id="d-label-famille">Famille</div>
+        <div class="detail-value" id="d-famille"></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label" id="d-label-affinage">Affinage</div>
+        <div class="detail-value" id="d-affinage"></div>
+        <div class="affinage-bar"><div class="affinage-fill" id="d-affinage-bar"></div></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label" id="d-label-desc">Description</div>
+      <div class="detail-bio" id="d-bio"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label" id="d-label-accord">Accord</div>
+      <div class="detail-value" id="d-accord"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label" id="d-label-anecdote">Le saviez-vous ?</div>
+      <div class="detail-value" id="d-anecdote"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-header">
+    <button class="btn-back" onclick="closeSettings()">‹</button>
+    <div class="settings-title">Réglages</div>
+  </div>
+  <div class="settings-body" id="settings-body"></div>
+</div>
+
+
+
+<script>
+// ==================== DATA ====================
+var FROMAGES = [
+                // NORMANDIE
+                {id:1,nom:"Camembert de Normandie",en:"Camembert de Normandie",region:"Normandie",lat:48.97,lng:0.18,lait:"Vache cru",famille:"Pâte molle croûte fleurie",aop:true,affinage_min:3,affinage_max:5,emoji:"🧀",
+                 wiki:"Camembert_de_Normandie",
+                 desc:"Le fromage français par excellence, né à Camembert (Orne) vers 1791. Sa croûte fleurie blanche recouvre une pâte coulante au lait cru normand. L'AOP garantit la fabrication au lait cru moulé à la louche.",
+                 en_desc:"The quintessential French cheese, born in Camembert village around 1791. Its white bloomy rind covers a flowing paste made from raw Norman milk.",
+                 accord:"Cidre de Normandie, Calvados, Champagne",
+                 anecdote:"Marie Harel, fermière normande, aurait mis au point la recette en 1791 avec l'aide d'un prêtre réfugié."},
+                {id:2,nom:"Livarot",en:"Livarot",region:"Normandie",lat:49.15,lng:0.15,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:5,emoji:"🧀",
+                 wiki:"Livarot (fromage)",
+                 desc:"Surnommé le 'Colonel' pour ses cinq bandelettes de laîche qui ceinturent sa forme. Croûte orangée lavée, pâte souple et goût prononcé caractéristique.",
+                 en_desc:"Nicknamed 'The Colonel' for its five bands of sedge grass. Washed orange rind, supple paste and distinctive strong flavour.",
+                 accord:"Calvados, bière brune, Côtes du Rhône",
+                 anecdote:"Les cinq bandelettes sont indispensables pour maintenir la pâte lors de l'affinage. Elles évoquent les galons d'un colonel."},
+                {id:3,nom:"Pont-l'Évêque",en:"Pont-l'Évêque",region:"Normandie",lat:49.29,lng:0.19,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:6,emoji:"🧀",
+                 wiki:"Pont-l'évêque",
+                 desc:"Plus ancien fromage normand toujours fabriqué, il est carré et doux avec une croûte jaune-orangée. Son nom vient de la ville éponyme du Calvados.",
+                 en_desc:"The oldest Norman cheese still made, it is square with a gentle flavour and yellowish-orange rind.",
+                 accord:"Cidre brut, Bordeaux blanc, Champagne",
+                 anecdote:"Sa forme carrée, unique parmi les AOP normandes, permettait aux moines médiévaux de le distinguer des fromages ronds soumis à la dîme."},
+                {id:4,nom:"Neufchâtel",en:"Neufchâtel",region:"Normandie",lat:49.73,lng:1.43,lait:"Vache cru",famille:"Pâte molle croûte fleurie",aop:true,affinage_min:3,affinage_max:10,emoji:"❤️",
+                 wiki:"Neufchâtel (fromage)",
+                 desc:"Seul fromage AOP en forme de cœur, fabriqué dans le pays de Bray. Sa croûte duvetée blanche cache une pâte ferme et salée légèrement piquante.",
+                 en_desc:"The only heart-shaped AOP cheese, made in the Bray region. Its downy white rind hides a firm, lightly pungent paste.",
+                 accord:"Cidre rosé, Bourgogne rouge, Calvados",
+                 anecdote:"Les jeunes Normandes offraient des Neufchâtels en forme de cœur aux soldats anglais pendant la Guerre de Cent Ans pour déclarer leur amour."},
+
+                // BRIE / ÎLE-DE-FRANCE
+                {id:5,nom:"Brie de Meaux",en:"Brie de Meaux",region:"Île-de-France",lat:48.96,lng:2.88,lait:"Vache cru",famille:"Pâte molle croûte fleurie",aop:true,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Brie_de_Meaux",
+                 desc:"Surnommé 'roi des fromages' par Talleyrand au Congrès de Vienne (1815). Grand disque plat au lait cru, croûte fleurie avec des reflets roussâtres.",
+                 en_desc:"Dubbed 'King of Cheeses' by Talleyrand at the Congress of Vienna (1815). Large flat disc of raw milk with a bloomy, russet-tinged rind.",
+                 accord:"Champagne, Bourgogne rouge, Châteauneuf-du-Pape",
+                 anecdote:"Charlemagne découvrit le Brie en 774 lors d'une halte à Reuil-en-Brie et en fit aussitôt livrer deux muletées à Aix-la-Chapelle chaque année."},
+                {id:6,nom:"Brie de Melun",en:"Brie de Melun",region:"Île-de-France",lat:48.54,lng:2.66,lait:"Vache cru",famille:"Pâte molle croûte fleurie",aop:true,affinage_min:4,affinage_max:12,emoji:"🧀",
+                 wiki:"Brie_de_Melun",
+                 desc:"Plus petit et plus salé que le Brie de Meaux, il offre un goût plus prononcé et une pâte plus ferme. Considéré comme l'ancêtre des Bries.",
+                 en_desc:"Smaller and saltier than Brie de Meaux, with a stronger flavour and firmer paste. Considered the ancestor of all Bries.",
+                 accord:"Bourgogne rouge, Bordeaux, Beaujolais Villages",
+                 anecdote:"Le Brie de Melun peut être affiné jusqu'à devenir le 'Brie noir', consommé trempé dans du café au lait, apprécié des bateliers de Seine."},
+                {id:7,nom:"Coulommiers",en:"Coulommiers",region:"Île-de-France",lat:48.81,lng:3.08,lait:"Vache cru/past.",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:3,affinage_max:8,emoji:"🧀",
+                 wiki:"Coulommiers (fromage)",
+                 desc:"Souvent appelé 'petit Brie', il est plus épais et plus crémeux que ses cousins briards. Fabriqué depuis le Moyen Âge dans la région de Coulommiers.",
+                 en_desc:"Often called 'petit Brie', it is thicker and creamier than its Brie relatives. Made since the Middle Ages around Coulommiers.",
+                 accord:"Champagne rosé, Chablis, Pinot noir",
+                 anecdote:"Le Coulommiers, non protégé par une AOP, est fabriqué dans toute la France. Seule une IGP régionale protège la version de Seine-et-Marne."},
+
+                // AUVERGNE
+                {id:8,nom:"Cantal",en:"Cantal",region:"Auvergne",lat:45.05,lng:2.67,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:1,affinage_max:18,emoji:"🧀",
+                 wiki:"Cantal (fromage)",
+                 desc:"L'un des plus anciens fromages du monde, fabriqué depuis au moins 2 000 ans dans les montagnes d'Auvergne. Décliné en jeune, entre-deux et vieux selon l'affinage.",
+                 en_desc:"One of the world's oldest cheeses, made for at least 2,000 years in the Auvergne mountains. Available young, medium or old.",
+                 accord:"Cahors, Côtes d'Auvergne, vin jaune",
+                 anecdote:"Pline l'Ancien mentionne déjà un fromage de la région dans son Histoire Naturelle au Ier siècle. La meule peut peser jusqu'à 45 kg."},
+                {id:9,nom:"Saint-Nectaire",en:"Saint-Nectaire",region:"Auvergne",lat:45.60,lng:2.99,lait:"Vache cru/past.",famille:"Pâte pressée non cuite",aop:true,affinage_min:5,affinage_max:8,emoji:"🧀",
+                 wiki:"Saint-nectaire",
+                 desc:"Fromage volcanique au parfum de champignon et de noisette, affiné sur seigle ou paille dans les caves des Monts Dore.",
+                 en_desc:"Volcanic cheese with aromas of mushroom and hazelnut, ripened on rye straw in the caves of the Monts Dore.",
+                 accord:"Côtes d'Auvergne, Saint-Pourçain, Gamay",
+                 anecdote:"Le maréchal de France Henri de la Ferté-Senneterre fit connaître le fromage à la cour de Louis XIV qui en fit aussitôt sa friandise préférée."},
+                {id:10,nom:"Fourme d'Ambert",en:"Fourme d'Ambert",region:"Auvergne",lat:45.55,lng:3.74,lait:"Vache pasteurisé",famille:"Pâte persillée",aop:true,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Fourme_d%27Ambert",
+                 desc:"Parmi les plus doux des fromages à pâte persillée, avec un goût crémeux et des veinures bleues discrètes. Cylindre élancé caractéristique.",
+                 en_desc:"Among the mildest blue-veined cheeses, with a creamy taste and subtle blue veins. Distinctive tall cylinder shape.",
+                 accord:"Sauternes, Porto, Monbazillac",
+                 anecdote:"La Fourme d'Ambert est l'un des plus anciens fromages de France, avec plus de 1 000 ans d'existence attestée dans les chartes de l'Auvergne."},
+                {id:11,nom:"Bleu d'Auvergne",en:"Bleu d'Auvergne",region:"Auvergne",lat:45.77,lng:3.08,lait:"Vache pasteurisé",famille:"Pâte persillée",aop:true,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Bleu_d%27Auvergne",
+                 desc:"Fromage à pâte persillée créé au milieu du XIXe siècle par Antoine Roussel. Goût plus prononcé que la Fourme d'Ambert, avec des notes piquantes.",
+                 en_desc:"Blue-veined cheese created in the mid-19th century by Antoine Roussel. More pronounced flavour than Fourme d'Ambert, with spicy notes.",
+                 accord:"Sauternes, Gewurztraminer, Porto tawny",
+                 anecdote:"Antoine Roussel eut l'idée vers 1854 de piquer le fromage avec une aiguille pour permettre à l'air de pénétrer et au Penicillium de se développer."},
+
+                // BOURGOGNE / FRANCHE-COMTÉ
+                {id:12,nom:"Comté",en:"Comté",region:"Franche-Comté",lat:46.91,lng:5.98,lait:"Vache cru",famille:"Pâte pressée cuite",aop:true,affinage_min:4,affinage_max:24,emoji:"🧀",
+                 wiki:"Comté (fromage)",
+                 desc:"Premier fromage AOP français par volume, élaboré dans le Haut-Jura. Meule de 40 kg aux arômes floraux, fruités et de noisette selon l'affinage.",
+                 en_desc:"France's largest AOP cheese by volume, made in the Haut-Jura. 40kg wheel with floral, fruity, hazelnut aromas according to maturation.",
+                 accord:"Vin jaune, Chardonnay du Jura, Champagne brut",
+                 anecdote:"Il faut environ 400 litres de lait pour produire une seule meule de Comté. Les fruitières (coopératives) existent depuis le XIIIe siècle."},
+                {id:13,nom:"Gruyère français",en:"Gruyère de Comté",region:"Franche-Comté",lat:46.85,lng:6.12,lait:"Vache cru",famille:"Pâte pressée cuite",aop:true,affinage_min:5,affinage_max:12,emoji:"🧀",
+                 wiki:"Gruyère français",
+                 desc:"Variante du Comté avec des trous caractéristiques. Affinage traditionnel en caves naturelles humides.",
+                 en_desc:"Variant of Comté with characteristic holes. Traditional ripening in humid natural cellars.",
+                 accord:"Chardonnay, Pinot Gris, bière blonde",
+                 anecdote:"Les trous du gruyère sont produits par des bactéries propioniques qui libèrent du CO₂ pendant l'affinage."},
+                {id:14,nom:"Morbier",en:"Morbier",region:"Franche-Comté",lat:46.52,lng:6.00,lait:"Vache cru/past.",famille:"Pâte pressée non cuite",aop:true,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Morbier (fromage)",
+                 desc:"Reconnaissable à sa raie noire centrale de charbon végétal qui sépare deux couches de lait. Goût doux et légèrement fumé.",
+                 en_desc:"Recognizable by its central black layer of vegetable ash separating two milk layers. Mild, slightly smoky flavour.",
+                 accord:"Chardonnay, Pinot noir de Bourgogne, bière ambrée",
+                 anecdote:"La raie noire était à l'origine une couche de suie que les fromageurs apposaient le soir pour protéger le caillé de la première traite jusqu'au lendemain matin."},
+                {id:15,nom:"Époisses",en:"Époisses",region:"Bourgogne",lat:47.50,lng:4.17,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:true,affinage_min:5,affinage_max:8,emoji:"🧀",
+                 wiki:"Époisses (fromage)",
+                 desc:"Fromage puissant à croûte orangée lavée au Marc de Bourgogne. Napoléon aurait déclaré l'Époisses seul fromage digne de lui.",
+                 en_desc:"Powerful cheese with an orange rind washed in Marc de Bourgogne. Napoleon reportedly declared Époisses the only cheese worthy of him.",
+                 accord:"Marc de Bourgogne, Bourgogne rouge, Sauternes",
+                 anecdote:"L'Époisses faillit disparaître lors de la Seconde Guerre mondiale. Il fut ressuscité dans les années 1950 par Robert et Simone Berthaut."},
+                {id:16,nom:"Langres",en:"Langres",region:"Bourgogne",lat:47.86,lng:5.33,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:true,affinage_min:5,affinage_max:8,emoji:"🧀",
+                 wiki:"Langres (fromage)",
+                 desc:"Son sommet concave (la fontaine) peut accueillir quelques gouttes de Champagne ou de Marc. Croûte orangée lavée, arôme puissant.",
+                 en_desc:"Its concave top (the 'fontaine') can hold a few drops of Champagne or Marc. Washed orange rind, powerful aroma.",
+                 accord:"Champagne, Marc de Bourgogne, vin jaune",
+                 anecdote:"La tradition veut que l'on verse un trait de Champagne ou de Marc de Bourgogne dans la 'fontaine' du Langres avant de le déguster."},
+                {id:17,nom:"Chaource",en:"Chaource",region:"Bourgogne",lat:48.07,lng:4.14,lait:"Vache cru/past.",famille:"Pâte molle croûte fleurie",aop:true,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Chaource (fromage)",
+                 desc:"Fromage cylindrique crémeux au cœur fondant et à la croûte blanche duvetée. Arômes de champignon et de crème fraîche.",
+                 en_desc:"Creamy cylindrical cheese with a melting centre and downy white rind. Mushroom and crème fraîche aromas.",
+                 accord:"Champagne, Chablis, Bourgogne Aligoté",
+                 anecdote:"Le Chaource est mentionné dans des textes depuis le XIVe siècle. La ville de Chaource, en Aube, lui a donné son nom."},
+
+                // SAVOIE / ALPES
+                {id:18,nom:"Beaufort",en:"Beaufort",region:"Savoie",lat:45.70,lng:6.57,lait:"Vache cru",famille:"Pâte pressée cuite",aop:true,affinage_min:5,affinage_max:12,emoji:"🧀",
+                 wiki:"Beaufort (fromage)",
+                 desc:"Surnommé le 'prince des gruyères', il se distingue par son talon concave caractéristique. Lait des vaches Tarines et Abondances des alpages d'altitude.",
+                 en_desc:"Nicknamed 'prince of the gruyères', distinguished by its concave heel. Milk from Tarine and Abondance cows on high-altitude pastures.",
+                 accord:"Roussette de Savoie, Chignin-Bergeron, Vin de Savoie",
+                 anecdote:"Le talon concave du Beaufort est imposé par l'AOP : il est formé par un cercle de bois d'épicéa qui serre la meule pendant l'affinage."},
+                {id:19,nom:"Abondance",en:"Abondance",region:"Savoie",lat:46.28,lng:6.73,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:3,affinage_max:12,emoji:"🧀",
+                 wiki:"Abondance (fromage)",
+                 desc:"Fromage de montagne à pâte souple et fruitée, fabriqué en Haute-Savoie depuis le XIVe siècle par les moines de l'abbaye d'Abondance.",
+                 en_desc:"Mountain cheese with a supple, fruity paste, made in Haute-Savoie since the 14th century by monks of Abondance abbey.",
+                 accord:"Roussette de Savoie, Apremont, bière de montagne",
+                 anecdote:"Le fromage d'Abondance est représenté sur une fresque de 1381 à l'abbaye éponyme, ce qui en fait un des fromages les mieux documentés de l'histoire."},
+                {id:20,nom:"Reblochon",en:"Reblochon",region:"Savoie",lat:45.91,lng:6.55,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:2,affinage_max:6,emoji:"🧀",
+                 wiki:"Reblochon",
+                 desc:"Fromage savoyard doux et crémeux, ingrédient phare de la Tartiflette. Son nom vient du patois 'reblocher' (traire à nouveau vache).",
+                 en_desc:"Mild, creamy Savoyard cheese, star ingredient of Tartiflette. Its name comes from the patois 'reblocher' (to milk the cow again).",
+                 accord:"Apremont, Chignin, Roussette de Savoie",
+                 anecdote:"Au XIIIe siècle, les fermiers cachaient une partie du lait au propriétaire lors du contrôle, puis 'reblochaient' la vache pour fabriquer leur fromage."},
+                {id:21,nom:"Tomme de Savoie",en:"Tomme de Savoie",region:"Savoie",lat:45.57,lng:6.20,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:false,affinage_min:2,affinage_max:6,emoji:"🧀",
+                 wiki:"Tomme_de_Savoie",
+                 desc:"Fromage ancestral de Savoie à la croûte grise fleurie, fabriqué avec le lait écrémé restant après la fabrication du beurre.",
+                 en_desc:"Ancient Savoyard cheese with a grey bloomy rind, made from skimmed milk left after butter-making.",
+                 accord:"Gamay de Savoie, Roussette, bière artisanale",
+                 anecdote:"La Tomme de Savoie ne bénéficie pas d'AOP car il en existe de nombreuses variantes. L'IGP Tomme de Savoie encadre sa production."},
+                {id:22,nom:"Vacherin Mont-d'Or",en:"Vacherin Mont-d'Or",region:"Franche-Comté",lat:46.77,lng:6.35,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:5,emoji:"🧀",
+                 wiki:"Mont d'Or (fromage)",
+                 desc:"Fromage saisonnier (sept–mars) cerclé d'une sangle d'épicéa qui lui donne son parfum résineux caractéristique. Coulant, à manger à la petite cuillère.",
+                 en_desc:"Seasonal cheese (Sept–Mar) encircled by a spruce bark band that gives it a characteristic resinous scent. Runny, eaten with a spoon.",
+                 accord:"Vin jaune, Chardonnay du Jura, Pinot Gris",
+                 anecdote:"Le Vacherin Mont-d'Or était originellement fabriqué quand les vaches redescendaient des alpages et produisaient moins de lait, insuffisant pour le Comté."},
+
+                // LOIRE / CENTRE
+                {id:23,nom:"Valençay",en:"Valençay",region:"Centre-Val de Loire",lat:47.16,lng:1.56,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:3,affinage_max:6,emoji:"🐐",
+                 wiki:"Valençay (fromage)",
+                 desc:"Pyramide à base carrée tronquée, couverte de cendre végétale. Napoléon aurait tranché le sommet d'un sabre pour ne pas voir la pyramide d'Égypte.",
+                 en_desc:"Truncated square-based pyramid covered in vegetable ash. Napoleon reportedly sliced off the top with his sabre to avoid seeing the Egyptian pyramid.",
+                 accord:"Sauvignon de Touraine, Sancerre, Reuilly",
+                 anecdote:"La légende veut que Napoléon, de retour d'Égypte, ait coupé le sommet de la pyramide avec son sabre lors d'un dîner au château de Valençay en 1814."},
+                {id:24,nom:"Crottin de Chavignol",en:"Crottin de Chavignol",region:"Centre-Val de Loire",lat:47.37,lng:2.84,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:2,affinage_max:12,emoji:"🐐",
+                 wiki:"Crottin_de_Chavignol",
+                 desc:"Petit fromage de chèvre du village de Chavignol, célèbre voisin de Sancerre. Peut se consommer frais, mi-sec ou sec selon les goûts.",
+                 en_desc:"Small goat cheese from Chavignol village, famous neighbour of Sancerre. Can be eaten fresh, semi-dry or dry.",
+                 accord:"Sancerre blanc, Pouilly-Fumé, Menetou-Salon",
+                 anecdote:"Le terme 'crottin' désignait un petit lampion en argile de la région. L'association avec ce fromage de forme ronde est évidente."},
+                {id:25,nom:"Selles-sur-Cher",en:"Selles-sur-Cher",region:"Centre-Val de Loire",lat:47.27,lng:1.55,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:3,affinage_max:6,emoji:"🐐",
+                 wiki:"Selles-sur-cher",
+                 desc:"Disque plat de lait de chèvre cru, recouvert de cendre végétale bleue-grise. Pâte fine et fondante aux notes caprines subtiles.",
+                 en_desc:"Flat disc of raw goat milk covered in blue-grey vegetable ash. Fine, melting paste with subtle goat notes.",
+                 accord:"Cheverny, Sauvignon de Touraine, Montlouis",
+                 anecdote:"La cendre végétale qui recouvre le Selles-sur-Cher n'est pas décorative : elle régule l'acidité de la croûte et favorise le développement des moisissures."},
+                {id:26,nom:"Sainte-Maure de Touraine",en:"Sainte-Maure de Touraine",region:"Centre-Val de Loire",lat:47.13,lng:0.62,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:3,affinage_max:8,emoji:"🐐",
+                 wiki:"Sainte-maure-de-touraine",
+                 desc:"Bûche de chèvre traversée d'une paille de seigle (ou de plastique) sur laquelle est gravé le nom du fromager. Croûte cendrée, pâte crémeuse.",
+                 en_desc:"Goat cheese log pierced by a rye straw (or plastic rod) engraved with the cheesemaker's name. Ash-coated rind, creamy paste.",
+                 accord:"Vouvray sec, Touraine Sauvignon, Chinon blanc",
+                 anecdote:"La paille qui traverse le fromage porte le numéro INAO du producteur, garantissant l'authenticité. C'est une mesure anti-fraude historique."},
+                {id:27,nom:"Pouligny-Saint-Pierre",en:"Pouligny-Saint-Pierre",region:"Centre-Val de Loire",lat:46.74,lng:1.09,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:4,affinage_max:8,emoji:"🐐",
+                 wiki:"Pouligny-saint-pierre",
+                 desc:"Pyramide élancée surnommée 'Tour Eiffel' ou 'Pyramide'. Pâte ferme et fondante, croûte naturelle bleutée, notes florales et noisettées.",
+                 en_desc:"Tall pyramid nicknamed 'Eiffel Tower' or 'Pyramid'. Firm, melting paste, bluish natural rind, floral and hazelnut notes.",
+                 accord:"Reuilly, Quincy, Sauvignon de Touraine",
+                 anecdote:"Le Pouligny-Saint-Pierre fut le premier fromage de chèvre à obtenir une AOC en France en 1976."},
+
+                // ALSACE / LORRAINE
+                {id:28,nom:"Munster",en:"Munster",region:"Alsace",lat:48.04,lng:7.13,lait:"Vache cru/past.",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:12,emoji:"🧀",
+                 wiki:"Munster (fromage)",
+                 desc:"Fromage alsacien à forte personnalité, à la croûte orange lavée et à la pâte souple. Traditionnellement servi avec du cumin.",
+                 en_desc:"Alsatian cheese with a strong personality, orange washed rind and supple paste. Traditionally served with cumin.",
+                 accord:"Gewurztraminer, Pinot Gris d'Alsace, bière ambrée",
+                 anecdote:"Le Munster a été créé au VIIe siècle par des moines bénédictins irlandais dans la vallée de Munster. Son nom vient du latin 'monasterium'."},
+
+                // PROVENCE / SUD
+                {id:29,nom:"Banon",en:"Banon",region:"Provence-Alpes-Côte d'Azur",lat:44.04,lng:5.63,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:2,affinage_max:6,emoji:"🌿",
+                 wiki:"Banon (fromage)",
+                 desc:"Enveloppé de feuilles de châtaignier liées par du raphia, il développe des arômes herbacés, boisés et légèrement caprins.",
+                 en_desc:"Wrapped in chestnut leaves tied with raffia, it develops herbal, woody and lightly goat-like aromas.",
+                 accord:"Côtes de Provence rosé, Palette, Coteaux d'Aix",
+                 anecdote:"Envelopper le fromage dans des feuilles de châtaignier était un moyen de conservation ancestral. Les tanins des feuilles protègent et aromatisent."},
+                {id:30,nom:"Pélardon",en:"Pélardon",region:"Occitanie",lat:44.10,lng:3.84,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:2,affinage_max:6,emoji:"🐐",
+                 wiki:"P%C3%A9lardon",
+                 desc:"Petit fromage de chèvre des Cévennes et des garrigues languedociennes, au goût doux et aromatique avec des herbes sauvages.",
+                 en_desc:"Small goat cheese from the Cévennes and Languedoc garrigue, with a mild aromatic taste of wild herbs.",
+                 accord:"Faugères, Pic-Saint-Loup, Clairette de Bellegarde",
+                 anecdote:"Le Pélardon est mentionné dès l'Antiquité par Columelle dans son traité d'agriculture. C'est l'un des fromages historiquement les mieux attestés."},
+
+                // PYRÉNÉES / BASQUE
+                {id:31,nom:"Ossau-Iraty",en:"Ossau-Iraty",region:"Nouvelle-Aquitaine",lat:43.16,lng:-0.86,lait:"Brebis cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:3,affinage_max:12,emoji:"🐑",
+                 wiki:"Ossau-Iraty",
+                 desc:"Fromage basque et béarnais de brebis aux notes douces de noisette et de nourriture animale. Deux variantes : ossau (Béarn) et iraty (Pays basque).",
+                 en_desc:"Basque and Béarnais sheep milk cheese with mild hazelnut and animal notes. Two varieties: ossau (Béarn) and iraty (Basque Country).",
+                 accord:"Irouléguy blanc, Jurançon, Madiran",
+                 anecdote:"L'Ossau-Iraty est fabriqué selon des méthodes ancestrales dans les estives des Pyrénées. Les bergers l'emportaient lors des transhumances estivales."},
+
+                // NORD
+                {id:32,nom:"Maroilles",en:"Maroilles",region:"Hauts-de-France",lat:50.00,lng:3.74,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:true,affinage_min:5,affinage_max:8,emoji:"🧀",
+                 wiki:"Maroilles (fromage)",
+                 desc:"Fromage du Nord à l'odeur puissante et à la pâte souple. Inventé au Xe siècle par les moines de l'abbaye de Maroilles.",
+                 en_desc:"Northern cheese with a powerful smell and supple paste. Invented in the 10th century by monks of Maroilles abbey.",
+                 accord:"Bière brune du Nord, Gewurztraminer, Pinot Gris",
+                 anecdote:"La flamiche au Maroilles est un plat emblématique du Nord-Pas-de-Calais. Charles de Gaulle, natif de Lille, était un grand amateur de ce fromage."},
+
+                // MASSIF CENTRAL / AVEYRON
+                {id:33,nom:"Roquefort",en:"Roquefort",region:"Occitanie",lat:43.97,lng:2.98,lait:"Brebis cru",famille:"Pâte persillée",aop:true,affinage_min:3,affinage_max:9,emoji:"🧀",
+                 wiki:"Roquefort (fromage)",
+                 desc:"Premier fromage à avoir obtenu une AOC (1925). Affiné exclusivement dans les caves naturelles de Combalou à Roquefort-sur-Soulzon avec Penicillium roqueforti.",
+                 en_desc:"First cheese to receive an AOC (1925). Ripened exclusively in the natural Combalou caves at Roquefort-sur-Soulzon with Penicillium roqueforti.",
+                 accord:"Sauternes, Porto, Banyuls, Jurançon",
+                 anecdote:"La légende raconte qu'un berger distrait abandonna son repas dans une grotte de Combalou pour courir après une bergère. À son retour, son fromage était veiné de bleu."},
+                {id:34,nom:"Laguiole",en:"Laguiole",region:"Occitanie",lat:44.68,lng:2.84,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:4,affinage_max:12,emoji:"🧀",
+                 wiki:"Laguiole (fromage)",
+                 desc:"Fromage traditionnel de l'Aubrac, cousin de l'Aligot. Pâte ferme et sèche aux arômes herbacés prononcés, fabriqué à plus de 800 m d'altitude.",
+                 en_desc:"Traditional cheese from the Aubrac plateau, cousin of Aligot. Firm, dry paste with pronounced herbal aromas, made above 800m altitude.",
+                 accord:"Marcillac, Côtes de Millau, Entraygues",
+                 anecdote:"Le Laguiole est l'ingrédient secret de l'aligot, la purée de pommes de terre filante emblématique de l'Aubrac, autrefois plat des pèlerins de Saint-Jacques."},
+
+                // SUPPLÉMENTS CHÈVRE
+                {id:35,nom:"Rocamadour",en:"Rocamadour",region:"Occitanie",lat:44.79,lng:1.62,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:1,affinage_max:3,emoji:"🐐",
+                 wiki:"Rocamadour (fromage)",
+                 desc:"Le plus petit fromage AOP de France (35g), fabriqué dans le Quercy. Pâte fondante, goût lacté et délicat.",
+                 en_desc:"France's smallest AOP cheese (35g), made in the Quercy. Melting paste, milky and delicate taste.",
+                 accord:"Cahors, Rocamadour Pécharmant, Jurançon sec",
+                 anecdote:"Le Rocamadour est si petit que les producteurs utilisent l'expression 'cabécou' (petit fromage en occitan) pour le désigner."},
+                {id:36,nom:"Picodon",en:"Picodon",region:"Auvergne-Rhône-Alpes",lat:44.51,lng:4.76,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:2,affinage_max:6,emoji:"🐐",
+                 wiki:"Picodon",
+                 desc:"Fromage de chèvre de l'Ardèche et de la Drôme, au goût piquant caractéristique. Pâte ferme et légèrement granuleuse.",
+                 en_desc:"Goat cheese from Ardèche and Drôme, with a characteristic pungent taste. Firm, slightly granular paste.",
+                 accord:"Crozes-Hermitage blanc, Saint-Joseph, Clairette de Die",
+                 anecdote:"Le nom 'picodon' vient du dialecte occitan 'pico' (piquer). Affiné longuement, il devient très sec et est parfois conservé dans l'huile d'olive."},
+
+                // SUPPLÉMENTS DIVERS
+                {id:37,nom:"Mimolette",en:"Mimolette",region:"Hauts-de-France",lat:50.63,lng:3.07,lait:"Vache pasteurisé",famille:"Pâte pressée non cuite",aop:false,affinage_min:6,affinage_max:24,emoji:"🍊",
+                 wiki:"Mimolette",
+                 desc:"Boule orange vif à la croûte crustacée creusée par les acariens (cirons). Pâte dense et sucrée rappelant le caramel selon l'affinage.",
+                 en_desc:"Vivid orange ball with a crusty rind pitted by mites (cheese mites). Dense, sweet paste reminiscent of caramel depending on maturation.",
+                 accord:"Bière triple, Genièvre du Nord, Maury",
+                 anecdote:"La Mimolette fut créée sur ordre de Colbert en 1675 pour remplacer l'Edam hollandais. Sa couleur orange vient du rocou, colorant naturel."},
+                {id:38,nom:"Munster Géromé",en:"Munster Géromé",region:"Lorraine",lat:48.07,lng:6.88,lait:"Vache cru/past.",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:6,emoji:"🧀",
+                 wiki:"Munster (fromage)",
+                 desc:"Variante lorraine du Munster, fabriquée dans les Vosges. Identique au Munster alsacien mais portant le nom de la ville de Gérardmer.",
+                 en_desc:"Lorraine variant of Munster, made in the Vosges. Identical to Alsatian Munster but named after the town of Gérardmer.",
+                 accord:"Pinot Gris d'Alsace, Riesling, Gewurztraminer",
+                 anecdote:"Munster et Géromé sont le même fromage mais produit des deux côtés des Vosges. L'AOP Munster-Géromé couvre les deux appellations."},
+                {id:39,nom:"Emmental de Savoie",en:"Emmental de Savoie",region:"Savoie",lat:45.49,lng:6.23,lait:"Vache cru",famille:"Pâte pressée cuite",aop:false,affinage_min:10,affinage_max:18,emoji:"🧀",
+                 wiki:"Emmental_de_Savoie",
+                 desc:"Variante française du gruyère à gros yeux ronds. Pâte douce et fruitée, affinage long en cave froide.",
+                 en_desc:"French variant of gruyère with large round holes. Mild, fruity paste, long ripening in cold cellar.",
+                 accord:"Roussette de Savoie, Apremont, Chardonnay",
+                 anecdote:"L'emmental français se distingue de l'emmental suisse par sa forme en meule et ses grands trous. L'IGP Emmental de Savoie protège la production savoyarde."},
+                {id:40,nom:"Bleu des Causses",en:"Bleu des Causses",region:"Occitanie",lat:44.22,lng:3.20,lait:"Vache cru",famille:"Pâte persillée",aop:true,affinage_min:3,affinage_max:9,emoji:"🧀",
+                 wiki:"Bleu_des_Causses",
+                 desc:"Cousin du Roquefort affiné dans les gorges du Dourdou. Pâte ivoire veinée de bleu, saveur prononcée et ardente.",
+                 en_desc:"Cousin of Roquefort, ripened in the Dourdou gorges. Ivory paste with blue veining, pronounced and fiery flavour.",
+                 accord:"Sauternes, Porto, Cahors",
+                 anecdote:"Le Bleu des Causses est affiné dans les 'fleurines', fissures naturelles des gorges qui créent des courants d'air frais et humide."},
+                {id:41,nom:"Bleu de Gex",en:"Bleu de Gex",region:"Franche-Comté",lat:46.33,lng:6.05,lait:"Vache cru",famille:"Pâte persillée",aop:true,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Bleu de Gex Haut-Jura",
+                 desc:"Fromage bleu doux fabriqué dans le Haut-Jura. Croûte naturelle blanche, pâte ivoire lardée de veines bleues légères, goût subtil.",
+                 en_desc:"Mild blue cheese made in the Haut-Jura. Natural white rind, ivory paste with light blue veins, subtle taste.",
+                 accord:"Vin jaune, Macvin du Jura, Chardonnay",
+                 anecdote:"Le Bleu de Gex est le moins piquant des fromages bleus français. Il était déjà mentionné au XIVe siècle dans les archives de la maison de Savoie."},
+                {id:42,nom:"Fourme de Montbrison",en:"Fourme de Montbrison",region:"Auvergne-Rhône-Alpes",lat:45.61,lng:4.07,lait:"Vache cru/past.",famille:"Pâte persillée",aop:true,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Fourme_de_Montbrison",
+                 desc:"Sœur de la Fourme d'Ambert, elle s'en distingue par son affinage dans la Loire. Pâte crémeuse, veinures bleues subtiles.",
+                 en_desc:"Sister of Fourme d'Ambert, distinguished by its Loire ripening. Creamy paste, subtle blue veins.",
+                 accord:"Sauternes, Porto, Gewurztraminer vendanges tardives",
+                 anecdote:"Fourme d'Ambert et Fourme de Montbrison partageaient la même AOC jusqu'en 2002, date à laquelle elles obtinrent des appellations séparées."},
+                {id:43,nom:"Livarot (fromage)",en:"Livarot (aged)",region:"Normandie",lat:49.16,lng:0.23,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:false,affinage_min:6,affinage_max:12,emoji:"🧀",
+                 wiki:"Livarot (fromage)",
+                 desc:"Version plus affinée du Livarot, à la croûte orangée plus prononcée et au goût plus intense. Rare et très apprécié des amateurs.",
+                 en_desc:"More matured version of Livarot, with a more pronounced orange rind and more intense flavour.",
+                 accord:"Calvados XO, Côtes du Rhône rouge, Banyuls",
+                 anecdote:"Affiné 6 à 12 mois, le Livarot vieilli développe des arômes de sous-bois et de truffe que l'on ne trouve que rarement dans les versions courantes."},
+                {id:44,nom:"Comté Vieux",en:"Comté Extra",region:"Franche-Comté",lat:46.93,lng:6.05,lait:"Vache cru",famille:"Pâte pressée cuite",aop:true,affinage_min:18,affinage_max:36,emoji:"🧀",
+                 wiki:"Comté (fromage)",
+                 desc:"Version grand affinage (18-36 mois) du Comté, développant des cristaux de tyrosine, des arômes de caramel, de noisette torréfiée.",
+                 en_desc:"Long-matured version (18-36 months) of Comté, developing tyrosine crystals, caramel and roasted hazelnut aromas.",
+                 accord:"Vin jaune, Château-Chalon, Champagne millésimé",
+                 anecdote:"Les cristaux blancs du Comté vieux ne sont pas du sel mais de la tyrosine, un acide aminé qui précipite lors d'un affinage long. Signe de qualité."},
+                {id:45,nom:"Brillat-Savarin",en:"Brillat-Savarin",region:"Normandie",lat:49.40,lng:1.70,lait:"Vache pasteurisé",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Brillat-savarin (marque fromagère)",
+                 desc:"Triple crème riche en matière grasse (75% MG), doux et beurré comme une crème. Croûte blanche fine.",
+                 en_desc:"Rich triple-cream cheese (75% fat), mild and buttery like cream. Fine white rind.",
+                 accord:"Champagne brut, Crémant de Bourgogne, Chablis",
+                 anecdote:"Nommé en hommage à Brillat-Savarin, gastronome et auteur de 'La Physiologie du Goût' (1825), ce fromage fut créé dans les années 1930."},
+                {id:46,nom:"Saint-Félicien",en:"Saint-Félicien",region:"Auvergne-Rhône-Alpes",lat:45.08,lng:4.90,lait:"Vache pasteurisé",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Saint-Felicien_cheese", wt:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Saint-Félicien_02.jpg/960px-Saint-Félicien_02.jpg",
+                 desc:"Fromage drômois ultra-crémeux se mangeant souvent à la cuillère quand il est bien fait. Cousin du Saint-Marcellin.",
+                 en_desc:"Ultra-creamy cheese from the Drôme, often eaten with a spoon when properly ripe. Cousin of Saint-Marcellin.",
+                 accord:"Condrieu, Crozes-Hermitage blanc, Chablis",
+                 anecdote:"Le Saint-Félicien et le Saint-Marcellin sont fabriqués dans les mêmes ateliers rhônalpins mais diffèrent par leur taille et leur texture."},
+                {id:47,nom:"Saint-Marcellin",en:"Saint-Marcellin",region:"Auvergne-Rhône-Alpes",lat:45.15,lng:5.32,lait:"Vache pasteurisé",famille:"Pâte molle croûte naturelle",aop:false,affinage_min:2,affinage_max:6,emoji:"🧀",
+                 wiki:"Saint-marcellin",
+                 desc:"Petit disque crémeux ou coulant de la région grenobloise. Louis XI en était si friand qu'il fit rapatrier des fromagers de Saint-Marcellin à Paris.",
+                 en_desc:"Small creamy disc from the Grenoble region. Louis XI was so fond of it he had cheesemakers brought from Saint-Marcellin to Paris.",
+                 accord:"Côtes du Rhône, Crozes-Hermitage, Viognier",
+                 anecdote:"Louis XI découvrit le Saint-Marcellin en 1445 lors d'une chasse dans le Vercors. Réfugié dans une ferme, il en fut si ravi qu'il en approvisionna la cour."},
+                {id:48,nom:"Époisses fermier",en:"Époisses fermier",region:"Bourgogne",lat:47.51,lng:4.16,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:6,affinage_max:10,emoji:"🧀",
+                 wiki:"Époisses (fromage)",
+                 desc:"Version fermière à lait cru de l'Époisses, à l'arôme encore plus complexe et à la pâte plus oncteuse que la version industrielle.",
+                 en_desc:"Raw-milk farmhouse version of Époisses, with even more complex aroma and creamier paste than the industrial version.",
+                 accord:"Marc de Bourgogne vieux, Grands Crus de Bourgogne",
+                 anecdote:"Seule une poignée de producteurs fabriquent encore l'Époisses fermier au lait cru. Ce fromage exigeant est considéré comme un des joyaux de la gastronomie française."},
+                {id:49,nom:"Brocciu",en:"Brocciu",region:"Corse",lat:42.16,lng:9.13,lait:"Brebis/Chèvre cru",famille:"Fromage frais",aop:true,affinage_min:0,affinage_max:1,emoji:"🏝️",
+                 wiki:"Brocciu",
+                 desc:"Fromage frais corse à base de petit-lait (lactosérum), l'unique produit laitier corse à bénéficier d'une AOP. Frais ou légèrement affiné.",
+                 en_desc:"Fresh Corsican cheese made from whey, the only Corsican dairy product with AOP status. Fresh or lightly matured.",
+                 accord:"Nielluccio, Patrimonio blanc, eau de vie corse",
+                 anecdote:"Le Brocciu est au cœur de la gastronomie corse. On le retrouve dans les beignets, les cannelloni, le fiadone (gâteau corse) et la coppa di testa."},
+                {id:50,nom:"Tomme des Pyrénées",en:"Tomme des Pyrénées",region:"Occitanie",lat:43.30,lng:0.88,lait:"Vache pasteurisé",famille:"Pâte pressée non cuite",aop:false,affinage_min:2,affinage_max:6,emoji:"🧀",
+                 wiki:"Tomme_des_Pyr%C3%A9n%C3%A9es",
+                 desc:"Fromage montagnard doux et crémeux, à la croûte naturelle grise ou noire selon la durée d'affinage.",
+                 en_desc:"Mild, creamy mountain cheese with a natural grey or black rind depending on maturation.",
+                 accord:"Madiran, Irouléguy, Côtes du Roussillon",
+                 anecdote:"La Tomme des Pyrénées est l'un des fromages les plus vendus en France. Elle peut être noire (croûte au charbon) ou blonde selon l'affinage."},
+                {id:51,nom:"Camembert (industriel)",en:"Camembert (industrial)",region:"Normandie",lat:48.82,lng:0.22,lait:"Vache pasteurisé",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Camembert", wt:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Camembert_de_Normandie_Bonchoix_-_Photo_3.jpg/500px-Camembert_de_Normandie_Bonchoix_-_Photo_3.jpg",
+                 desc:"Version industrielle à lait pasteurisé, plus accessible mais moins complexe que le Camembert de Normandie AOP. Production nationale.",
+                 en_desc:"Industrial pasteurised-milk version, more accessible but less complex than the AOP Camembert de Normandie.",
+                 accord:"Cidre, Bordeaux rouge, Beaujolais",
+                 anecdote:"95% des camemberts vendus en France sont des versions industrielles au lait pasteurisé. La boîte en bois ronde est née en 1890 grâce à M. Ridel."},
+                {id:52,nom:"Tome de Brebis basque",en:"Basque Sheep Tome",region:"Nouvelle-Aquitaine",lat:43.48,lng:-1.57,lait:"Brebis cru",famille:"Pâte pressée non cuite",aop:false,affinage_min:3,affinage_max:6,emoji:"🐑",
+                 wiki:"Ossau-Iraty",
+                 desc:"Variante fermière de l'Ossau-Iraty produite par des producteurs basques. Pâte ferme et dorée, arômes de prairie et de noisette.",
+                 en_desc:"Farmhouse variant of Ossau-Iraty from Basque producers. Firm, golden paste, meadow and hazelnut aromas.",
+                 accord:"Irouléguy rouge, Madiran, Côtes de Gascogne",
+                 anecdote:"La confiture de cerises noires d'Itxassou est le condiment traditionnel servi avec le fromage de brebis basque depuis des siècles."},
+                {id:53,nom:"Bleu de Termignon",en:"Bleu de Termignon",region:"Savoie",lat:45.34,lng:6.87,lait:"Vache cru",famille:"Pâte persillée",aop:false,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Bleu_de_Termignon",
+                 desc:"Fromage bleu artisanal très rare, produit par quelques familles en Haute-Maurienne. Veinures naturelles spontanées, saveur complexe.",
+                 en_desc:"Very rare artisan blue cheese, produced by a few families in Haute-Maurienne. Natural spontaneous veining, complex flavour.",
+                 accord:"Vin jaune, Château-Chalon, Muscat",
+                 anecdote:"Moins de 5 producteurs fabriquent encore le Bleu de Termignon, entièrement à la main dans des chalets d'alpage à plus de 2 000 mètres d'altitude."},
+                {id:54,nom:"Chabichou du Poitou",en:"Chabichou du Poitou",region:"Nouvelle-Aquitaine",lat:46.58,lng:0.34,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:2,affinage_max:8,emoji:"🐐",
+                 wiki:"Chabichou_du_Poitou",
+                 desc:"Petite bonde caractéristique du Poitou-Charentes. Croûte plissée blanche, pâte fine, goût doux de lait de chèvre.",
+                 en_desc:"Small, characteristic bonde shape from Poitou-Charentes. Wrinkled white rind, fine paste, mild goat milk taste.",
+                 accord:"Haut-Poitou Sauvignon, Saumur blanc, Vouvray",
+                 anecdote:"Le mot 'chabichou' vient de l'arabe 'chebli' (chèvre). Il aurait été introduit dans le Poitou par les Maures lors de leur invasion au VIIIe siècle."},
+                {id:55,nom:"Mothais-sur-Feuille",en:"Mothais-sur-Feuille",region:"Nouvelle-Aquitaine",lat:46.69,lng:0.15,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:false,affinage_min:3,affinage_max:5,emoji:"🌿",
+                 wiki:"Mothais sur feuille",
+                 desc:"Disque de lait de chèvre affiné sur une feuille de châtaignier ou de platane qui lui apporte des arômes végétaux discrets.",
+                 en_desc:"Goat milk disc ripened on a chestnut or plane tree leaf, which imparts subtle vegetal aromas.",
+                 accord:"Haut-Poitou, Sancerre, bière blanche",
+                 anecdote:"La feuille sous le Mothais n'est pas décorative : elle absorbe l'excès d'humidité et crée le microenvironnement idéal pour l'affinage."},
+                {id:56,nom:"Tomme Fraîche",en:"Tomme Fraîche",region:"Auvergne",lat:45.12,lng:2.77,lait:"Vache cru",famille:"Pâte fraîche",aop:false,affinage_min:0,affinage_max:1,emoji:"🧀",
+                 wiki:"Tome fraîche de l'Aubrac",
+                 desc:"Tomme non affinée utilisée dans la fabrication de l'Aligot et de la Truffade. Élastique et fondante à la chaleur.",
+                 en_desc:"Unripened tomme used in making Aligot and Truffade. Elastic and melting when heated.",
+                 accord:"Vin nature d'Auvergne, Côtes d'Auvergne",
+                 anecdote:"Sans la Tomme Fraîche, pas d'Aligot. C'est elle qui donne au plat sa texture élastique caractéristique, filant à 50 centimètres quand on lève la cuillère."},
+                {id:57,nom:"Fromage de Meaux",en:"Fromage de Meaux",region:"Île-de-France",lat:48.95,lng:2.89,lait:"Vache cru",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Brie_de_Meaux",
+                 desc:"Terme générique parfois utilisé pour désigner le Brie de Meaux ou ses variantes artisanales locales.",
+                 en_desc:"Generic term sometimes used for Brie de Meaux or its local artisan variants.",
+                 accord:"Champagne, Bordeaux rouge",
+                 anecdote:"La région briarde produit plusieurs fromages de la famille Brie : Brie de Meaux, Brie de Melun, Brie de Nangis, Brie de Montereau..."},
+                {id:58,nom:"Carré de l'Est",en:"Carré de l'Est",region:"Lorraine",lat:48.55,lng:6.20,lait:"Vache pasteurisé",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:3,affinage_max:6,emoji:"🧀",
+                 wiki:"Carr%C3%A9_de_l%27Est",
+                 desc:"Fromage carré doux et crémeux de Lorraine et Champagne, disponible en version croûte fleurie ou croûte lavée.",
+                 en_desc:"Mild, creamy square cheese from Lorraine and Champagne, available with bloomy or washed rind.",
+                 accord:"Champagne, Pinot noir d'Alsace, bière blonde",
+                 anecdote:"Le Carré de l'Est est l'un des premiers fromages industriels français, fabriqué depuis le XIXe siècle dans les laiteries de Lorraine."},
+                {id:59,nom:"Soumaintrain",en:"Soumaintrain",region:"Bourgogne",lat:47.90,lng:3.70,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:6,emoji:"🧀",
+                 wiki:"Soumaintrain (fromage)",
+                 desc:"Proche de l'Époisses mais plus doux, ce fromage bourguignon à croûte lavée produit dans l'Yonne séduit par sa pâte onctueuse.",
+                 en_desc:"Close to Époisses but milder, this Burgundian washed-rind cheese from the Yonne seduces with its unctuous paste.",
+                 accord:"Chablis, Bourgogne Aligoté, Marc de Bourgogne",
+                 anecdote:"Le Soumaintrain fut oublié pendant des décennies avant d'être relancé dans les années 1990 par des artisans passionnés."},
+                {id:60,nom:"Vieux-Boulogne",en:"Vieux-Boulogne",region:"Hauts-de-France",lat:50.73,lng:1.61,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:false,affinage_min:7,affinage_max:9,emoji:"🧀",
+                 wiki:"Vieux-Boulogne",wt:"https://www.produits-laitiers.com/app/uploads/2019/04/3616_vieux-boulogne-1-800x600.jpg",
+                 desc:"Surnommé 'le fromage le plus odorant du monde' par des scientifiques de Cranfield. Croûte lavée à la bière de la région, pâte souple.",
+                 en_desc:"Dubbed 'the world's smelliest cheese' by Cranfield University scientists. Rind washed in local beer, supple paste.",
+                 accord:"Bière de Noël du Nord, Gueuze, Pinot Gris",
+                 anecdote:"En 2004, des chercheurs de Cranfield ont utilisé un 'nez électronique' pour couronner le Vieux-Boulogne fromage le plus odorant du monde."},
+                // SUPPLÉMENTS POUR ATTEINDRE ~90
+                {id:61,nom:"Tomme d'Abondance",en:"Abondance Tomme",region:"Savoie",lat:46.29,lng:6.74,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:false,affinage_min:2,affinage_max:4,emoji:"🧀",
+                 wiki:"Abondance_cheese",wt:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/WikiCheese_-_Tomme_de_Savoie_-_20150619_-_002.jpg/960px-WikiCheese_-_Tomme_de_Savoie_-_20150619_-_002.jpg",
+                 desc:"Forme plus jeune et plus accessible de l'Abondance, fabriquée dans les mêmes vallées de Haute-Savoie.",
+                 en_desc:"Younger, more accessible form of Abondance, made in the same Haute-Savoie valleys.",
+                 accord:"Apremont, Roussette, bière blonde",
+                 anecdote:"Avant l'AOP Abondance, tous les fromages de la vallée s'appelaient simplement 'tomme'. Le nom officiel Abondance ne s'est imposé qu'en 1990."},
+                {id:62,nom:"Persillé du Grand-Bornand",en:"Persillé du Grand-Bornand",region:"Savoie",lat:45.94,lng:6.43,lait:"Chèvre cru",famille:"Pâte persillée",aop:false,affinage_min:2,affinage_max:4,emoji:"🐐",
+                 wiki:"Persill%C3%A9",
+                 desc:"Rarissime fromage bleu de chèvre savoyard, fabriqué artisanalement dans les Aravis. Pâte fondante et parfumée.",
+                 en_desc:"Very rare Savoyard goat blue cheese, artisan-made in the Aravis. Melting and aromatic paste.",
+                 accord:"Vin de Savoie, Roussette d'Apremont, Mondeuse",
+                 anecdote:"Le Persillé du Grand-Bornand est l'un des très rares fromages persillés au lait de chèvre. Sa production est si confidentielle qu'il est quasiment introuvable hors Savoie."},
+                {id:63,nom:"Cathare",en:"Cathare",region:"Occitanie",lat:43.20,lng:2.35,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:false,affinage_min:2,affinage_max:4,emoji:"✝️",
+                 wiki:"",wt:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Cathare_fromage.JPG/960px-Cathare_fromage.JPG",
+                 desc:"Fromage de chèvre occitan en forme de croix cathare estampillée sur la croûte cendrée. Symbole de la région.",
+                 en_desc:"Occitan goat cheese with a Cathar cross stamped on the ash-coated rind. Regional symbol.",
+                 accord:"Blanquette de Limoux, Corbières blanc, Maury",
+                 anecdote:"La croix occitane gravée sur le Cathare est un acte de fierté régionale forte. Le fromage a été créé dans les années 1990 pour valoriser l'identité languedocienne."},
+                {id:64,nom:"Rigotte de Condrieu",en:"Rigotte de Condrieu",region:"Auvergne-Rhône-Alpes",lat:45.46,lng:4.78,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:true,affinage_min:2,affinage_max:6,emoji:"🐐",
+                 wiki:"Rigotte de Condrieu",wt:"",
+                 desc:"Petit fromage de chèvre du Pilat, sec et parfumé aux herbes de garrigue rhodanienne.",
+                 en_desc:"Small goat cheese from the Pilat mountains, dry and fragrant with Rhodanian garrigue herbs.",
+                 accord:"Condrieu, Côtes du Rhône blanc, Saint-Joseph",
+                 anecdote:"Le mot 'rigotte' est une déformation de 'recuite' car le fromage était autrefois élaboré en recuisant le petit-lait."},
+                {id:65,nom:"Bleu de Sassenage",en:"Bleu de Sassenage",region:"Auvergne-Rhône-Alpes",lat:45.25,lng:5.64,lait:"Vache cru",famille:"Pâte persillée",aop:false,affinage_min:3,affinage_max:5,emoji:"🧀",
+                 wiki:"Bleu_du_Vercors-Sassenage",
+                 desc:"Fromage bleu du Vercors, ancêtre attesté depuis 1338. Pâte souple et ivoire avec des veinures bleues légères.",
+                 en_desc:"Blue cheese from the Vercors, documented since 1338. Supple, ivory paste with light blue veins.",
+                 accord:"Crozes-Hermitage blanc, Condrieu, Muscat",
+                 anecdote:"Le dauphin Louis XI accordait des privilèges fiscaux aux producteurs du Bleu de Sassenage. C'est l'un des rares fromages attestés par un acte royal."},
+                {id:66,nom:"Reblochon de Savoie Fermier",en:"Reblochon Fermier",region:"Savoie",lat:45.93,lng:6.56,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:6,emoji:"🧀",
+                 wiki:"Reblochon",
+                 desc:"Version fermière du Reblochon, reconnaissable à sa plaquette de caséine verte (la version laitière porte une plaquette rouge).",
+                 en_desc:"Farmhouse version of Reblochon, recognizable by its green casein plaque (the dairy version has a red plaque).",
+                 accord:"Chignin, Apremont, Roussette de Savoie",
+                 anecdote:"La plaquette verte du Reblochon Fermier garantit que le fromage a été fabriqué à la ferme même, à partir du lait des troupeaux du producteur."},
+                {id:67,nom:"Munster",en:"Munster with cumin",region:"Alsace",lat:48.06,lng:7.12,lait:"Vache cru/past.",famille:"Pâte molle croûte lavée",aop:true,affinage_min:3,affinage_max:8,emoji:"🌿",
+                 wiki:"Munster (fromage)",
+                 desc:"Variante classique du Munster agrémentée de graines de cumin qui adoucissent légèrement sa puissance aromatique.",
+                 en_desc:"Classic variant of Munster enhanced with cumin seeds, which slightly soften its aromatic power.",
+                 accord:"Gewurztraminer, Riesling, bière de garde",
+                 anecdote:"Le cumin et le Munster forment un mariage traditionnel alsacien. Les graines étaient autrefois utilisées pour masquer l'odeur pendant le transport."},
+                {id:68,nom:"Salers",en:"Salers",region:"Auvergne",lat:45.13,lng:2.49,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:3,affinage_max:12,emoji:"🧀",
+                 wiki:"Salers (fromage)",
+                 desc:"Fromage d'estive produit uniquement de mai à octobre avec le lait des vaches Salers au pâturage. Seul fromage AOP à lait non collecté par citerne.",
+                 en_desc:"Pasture cheese made only from May to October with milk from Salers cows at pasture. The only AOP cheese whose milk is not collected by tanker.",
+                 accord:"Côtes d'Auvergne, Cahors, Marcillac",
+                 anecdote:"Le lait du Salers ne quitte jamais la ferme : il est transformé sur place, dans les burons (chalets d'estive), dans les 2 heures suivant la traite."},
+                {id:69,nom:"Ossau-Iraty vieux",en:"Ossau-Iraty Vieux",region:"Nouvelle-Aquitaine",lat:43.17,lng:-0.87,lait:"Brebis cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:12,affinage_max:18,emoji:"🐑",
+                 wiki:"Ossau-Iraty",
+                 desc:"Version longuement affinée (12-18 mois) de l'Ossau-Iraty. Pâte sèche et granuleuse, arômes intenses de laine et de noisette.",
+                 en_desc:"Long-matured version (12-18 months) of Ossau-Iraty. Dry, granular paste, intense wool and hazelnut aromas.",
+                 accord:"Jurançon moelleux, Banyuls, Irouléguy rouge",
+                 anecdote:"Affiné aussi longtemps que certains parmesans, l'Ossau-Iraty Vieux développe des cristaux de tyrosine et une complexité aromatique exceptionnelle."},
+                {id:70,nom:"Chabis de Gatine",en:"Chabis de Gatine",region:"Nouvelle-Aquitaine",lat:46.73,lng:-0.22,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:false,affinage_min:2,affinage_max:5,emoji:"🐐",
+                 wiki:"Chabichou_du_Poitou",
+                 desc:"Cousin du Chabichou, fromage de chèvre artisanal de Vendée et du Poitou. Pâte fine et fondante, légèrement acidulée.",
+                 en_desc:"Cousin of Chabichou, artisan goat cheese from Vendée and Poitou. Fine, melting paste, slightly acidic.",
+                 accord:"Muscadet, Saumur blanc, Gros Plant du Pays Nantais",
+                 anecdote:"La Gâtine poitevine est une région de bocage et de landes propice à l'élevage caprin depuis des siècles."},
+                {id:71,nom:"Raclette de Savoie",en:"Raclette de Savoie",region:"Savoie",lat:45.56,lng:6.42,lait:"Vache cru/past.",famille:"Pâte pressée non cuite",aop:false,affinage_min:3,affinage_max:6,emoji:"🫕",
+                 wiki:"Raclette",
+                 desc:"Fromage à fondre par excellence, il se racle chaud sur des pommes de terre. Version française de la raclette suisse.",
+                 en_desc:"The ultimate melting cheese, scraped hot onto potatoes. French version of Swiss raclette.",
+                 accord:"Apremont, Roussette de Savoie, Vin de Savoie",
+                 anecdote:"Le mot 'raclette' vient du franco-provençal 'racler' (gratter). Les bergers valaisans chauffaient leur meule devant le feu et grattaient le fromage fondu."},
+                {id:72,nom:"Beaumont",en:"Beaumont",region:"Savoie",lat:45.80,lng:6.15,lait:"Vache pasteurisé",famille:"Pâte pressée non cuite",aop:false,affinage_min:4,affinage_max:8,emoji:"🧀",
+                 wiki:"Beaumont_(cheese)",wt:"https://provencia.fr/wp-content/uploads/2021/07/pochat_beaumont_savoie_pointe_percee.jpg",
+                 desc:"Fromage savoyard industriel à pâte souple et dorée, proche du Reblochon mais plus doux. Très populaire en grande surface.",
+                 en_desc:"Industrial Savoyard cheese with a supple, golden paste, close to Reblochon but milder. Very popular in supermarkets.",
+                 accord:"Roussette, Apremont, Mondeuse",
+                 anecdote:"Le Beaumont est créé en 1881 par les frères Poccard, fromagers savoyards. C'est l'un des premiers fromages savoyards à être produit industriellement."},
+                {id:73,nom:"Gratte-Paille",en:"Gratte-Paille",region:"Île-de-France",lat:48.83,lng:3.12,lait:"Vache pasteurisé",famille:"Pâte molle croûte fleurie",aop:false,affinage_min:3,affinage_max:5,emoji:"🧀",
+                 wiki:"Gratte-Paille",wt:"https://www.leguidedufromage.com/files/1/z1908131426070.jpg",
+                 desc:"Fromage briard triple-crème riche et fondant, cousin du Brillat-Savarin. Croûte blanche fine, texture luxueusement crémeuse.",
+                 en_desc:"Rich, melting triple-cream Brie-style cheese, cousin of Brillat-Savarin. Fine white rind, luxuriously creamy texture.",
+                 accord:"Champagne, Crémant de Loire, Chablis",
+                 anecdote:"Gratte-Paille doit son nom pittoresque à sa forme rectangulaire allongée qui, selon la légende, raclait la paille des étables lors du transport."},
+                {id:74,nom:"Cœur de Neufchâtel",en:"Cœur de Neufchâtel",region:"Normandie",lat:49.74,lng:1.44,lait:"Vache cru",famille:"Pâte molle croûte fleurie",aop:true,affinage_min:4,affinage_max:12,emoji:"❤️",
+                 wiki:"Neufchâtel (fromage)",
+                 desc:"Variante grand format du Neufchâtel, plus longtemps affinée. La croûte duvetée est plus développée et la pâte plus sèche.",
+                 en_desc:"Large-format variant of Neufchâtel, more matured. The downy rind is more developed and the paste drier.",
+                 accord:"Bourgogne rouge, Cidre rosé de Normandie",
+                 anecdote:"Le Neufchâtel est produit en six formes différentes : carré, briquette, bondard, cœur, double-bondard et grand-cœur."},
+                {id:75,nom:"Trou du Cru",en:"Trou du Cru",region:"Bourgogne",lat:47.50,lng:4.16,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:false,affinage_min:4,affinage_max:6,emoji:"🧀",
+                 wiki:"Le Trou du Cru",
+                 desc:"Mini-Époisses lavé à la marc de Bourgogne. Même caractère aromatique mais format plus petit, idéal pour la dégustation individuelle.",
+                 en_desc:"Mini-Époisses washed in Marc de Bourgogne. Same aromatic character but smaller format, ideal for individual tasting.",
+                 accord:"Marc de Bourgogne, Gevrey-Chambertin, Bourgogne rouge",
+                 anecdote:"Le Trou du Cru est fabriqué dans la même fromagerie que l'Époisses. Sa taille réduite permet une maturation plus rapide et un goût légèrement différent."},
+                {id:76,nom:"Nantais dit Curé",en:"Curé Nantais",region:"Pays de la Loire",lat:47.22,lng:-1.55,lait:"Vache pasteurisé",famille:"Pâte pressée non cuite",aop:false,affinage_min:4,affinage_max:6,emoji:"🧀",
+                 wiki:"Le Curé Nantais",
+                 desc:"Fromage carré à la croûte lavée couleur ocre, créé par le curé Bonhomme au XIXe siècle. Pâte souple, goût doux aux notes de noisette.",
+                 en_desc:"Square cheese with an ochre washed rind, created by curé Bonhomme in the 19th century. Supple paste, mild hazelnut notes.",
+                 accord:"Muscadet, Gros Plant, Coteaux d'Ancenis",
+                 anecdote:"Le curé Pierre Hivert créa ce fromage vers 1880 pour utiliser le surplus de lait de sa paroisse. Il le vendait sur les marchés de Nantes."},
+                {id:77,nom:"Bethmale",en:"Bethmale",region:"Occitanie",lat:42.92,lng:1.01,lait:"Vache/Brebis cru",famille:"Pâte pressée non cuite",aop:false,affinage_min:3,affinage_max:6,emoji:"🧀",
+                 wiki:"Bethmale (fromage)",
+                 desc:"Fromage des Pyrénées ariégeoises à pâte souple et trouée, aux arômes herbacés et floraux prononcés.",
+                 en_desc:"Ariège Pyrenean cheese with a supple, holey paste and pronounced herbal and floral aromas.",
+                 accord:"Irouléguy, Côtes du Roussillon, Madiran",
+                 anecdote:"Selon la légende, le roi Louis VI fit halte à Bethmale lors d'une chasse et tomba sous le charme d'une bergère. Son amoureux jaloux frappa la croûte du fromage avec un clou."},
+                {id:78,nom:"Tomme au Marc",en:"Tomme au Marc",region:"Franche-Comté",lat:46.90,lng:5.82,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:false,affinage_min:3,affinage_max:6,emoji:"🍇",
+                 wiki:"Tomme du Jura",
+                 desc:"Tomme enrobée de marc de raisin fermenté. L'enveloppe violette parfume la pâte d'arômes de raisin et d'alcool.",
+                 en_desc:"Tomme coated in fermented grape marc. The purple coating flavours the paste with grape and alcohol aromas.",
+                 accord:"Vin jaune, Marc de Bourgogne, Savagnin",
+                 anecdote:"La Tomme au Marc est née de la récupération des marcs de raisin après la vendange. Les fromagers les mélangeaient et y plongeaient des tommes pour l'hiver."},
+                {id:79,nom:"Boulette d'Avesnes",en:"Boulette d'Avesnes",region:"Hauts-de-France",lat:50.12,lng:3.93,lait:"Vache pasteurisé",famille:"Pâte fraîche",aop:false,affinage_min:3,affinage_max:6,emoji:"🌶️",
+                 wiki:"Boulette_d%27Avesnes",
+                 desc:"Fromage conique malaxé manuellement avec persil, estragon, clou de girofle et poivre. Croûte rougeâtre au rocou, saveur très puissante.",
+                 en_desc:"Conical cheese hand-kneaded with parsley, tarragon, cloves and pepper. Reddish rind with annatto, very powerful flavour.",
+                 accord:"Bière brune du Nord, Genièvre, Rodenbach",
+                 anecdote:"La Boulette d'Avesnes était surnommée 'le suppositoire du diable' pour sa forme conique et son goût redoutable. Elle est fabriquée à partir de maroilles déclassés."},
+                {id:80,nom:"Gaperon",en:"Gaperon",region:"Auvergne",lat:45.60,lng:3.08,lait:"Vache pasteurisé",famille:"Pâte pressée non cuite",aop:false,affinage_min:4,affinage_max:8,emoji:"🧄",
+                 wiki:"Gaperon",
+                 desc:"Fromage sphérique auvergnat parfumé à l'ail et au poivre. Pâte ferme, arôme puissant, attaché par un ruban.",
+                 en_desc:"Spherical Auvergne cheese flavoured with garlic and pepper. Firm paste, powerful aroma, tied with a ribbon.",
+                 accord:"Côtes d'Auvergne, Gigondas, Châteauneuf-du-Pape",
+                 anecdote:"Autrefois, suspendre des Gaperons aux poutres de la maison indiquait la richesse d'un paysan et ses chances de marier sa fille : plus il y en avait, plus la dot était importante."},
+                {id:81,nom:"Tome des Bauges",en:"Tome des Bauges",region:"Savoie",lat:45.67,lng:6.19,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:5,affinage_max:8,emoji:"🧀",
+                 wiki:"Tome_des_Bauges",
+                 desc:"Fromage savoyard du massif des Bauges, proche de la Tomme de Savoie mais plus typée. Croûte grise naturelle, pâte souple et aromatique.",
+                 en_desc:"Savoyard cheese from the Bauges massif, close to Tomme de Savoie but more characterful. Natural grey rind, supple, aromatic paste.",
+                 accord:"Roussette de Savoie, Apremont, Mondeuse",
+                 anecdote:"La Tome des Bauges bénéficie d'une AOP depuis 2002. Elle doit être fabriquée dans le massif des Bauges, entre Annecy, Chambéry et Albertville."},
+                {id:82,nom:"Laguiole vieux",en:"Laguiole Vieux",region:"Occitanie",lat:44.69,lng:2.85,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:12,affinage_max:24,emoji:"🧀",
+                 wiki:"Laguiole (fromage)",
+                 desc:"Version longuement affinée du Laguiole, pâte très sèche et cassante, croûte épaisse aux moisissures grises. Arômes intenses.",
+                 en_desc:"Long-matured version of Laguiole, very dry and crumbly paste, thick rind with grey moulds. Intense aromas.",
+                 accord:"Marcillac vieux, Côtes de Millau, Cahors",
+                 anecdote:"Le Laguiole vieux de 24 mois est si sec qu'on le mange râpé sur des plats. Sa production en grand affinage est rarissime et très prisée."},
+                {id:83,nom:"Livarot (fromage)",en:"Livarot Fermier",region:"Normandie",lat:49.17,lng:0.14,lait:"Vache cru",famille:"Pâte molle croûte lavée",aop:true,affinage_min:5,affinage_max:8,emoji:"🧀",
+                 wiki:"Livarot",
+                 desc:"Rare version fermière du Livarot au lait cru entier, à l'arôme et à la pâte bien plus complexes que la version industrielle.",
+                 en_desc:"Rare farmhouse version of Livarot from whole raw milk, with far more complex aroma and paste than the industrial version.",
+                 accord:"Calvados, Cidre brut, Côtes de Bourg",
+                 anecdote:"Quelques fermes normandes perpétuent le Livarot fermier au lait cru. La production est si confidentielle que ce fromage est souvent introuvable hors Normandie."},
+                {id:84,nom:"Chevrotin",en:"Chevrotin",region:"Savoie",lat:45.95,lng:6.58,lait:"Chèvre cru",famille:"Pâte pressée non cuite",aop:true,affinage_min:3,affinage_max:6,emoji:"🐐",
+                 wiki:"Chevrotin",
+                 desc:"Unique fromage AOP de montagne au lait de chèvre, fabriqué en Savoie et Haute-Savoie. Pâte pressée et lavée, parfum discret.",
+                 en_desc:"Unique AOP mountain goat milk cheese from Savoie and Haute-Savoie. Pressed and washed paste, discreet fragrance.",
+                 accord:"Roussette de Savoie, Apremont, bière blanche",
+                 anecdote:"Le Chevrotin est le seul fromage AOP à pâte pressée au lait de chèvre en France. Son obtention en 2002 fut le résultat d'une longue bataille des producteurs savoyards."},
+                {id:85,nom:"Fromage Corse Niolo",en:"Niolo Corsican Cheese",region:"Corse",lat:42.38,lng:8.99,lait:"Brebis/Chèvre cru",famille:"Pâte molle croûte lavée",aop:false,affinage_min:4,affinage_max:12,emoji:"🏝️",
+                 wiki:"Niolo (fromage)",
+                 desc:"Fromage corse à pâte molle lavée à la saumure, produit dans le Niolu (Haute-Corse). Arômes puissants de maquis corse.",
+                 en_desc:"Corsican soft cheese washed in brine, produced in the Niolu region (Haute-Corse). Powerful aromas of Corsican maquis.",
+                 accord:"Nielluccio, Corse Porto-Vecchio, grappa corse",
+                 anecdote:"Le Niolo est si odorant que les voyageurs du XIXe siècle le décrivaient comme 'transporté dans des boîtes de fer-blanc hermétiques'."},
+                {id:86,nom:"Cendrillon",en:"Cendrillon",region:"Bourgogne",lat:47.51,lng:4.20,lait:"Chèvre cru",famille:"Pâte molle croûte naturelle",aop:false,affinage_min:3,affinage_max:6,emoji:"🐐",
+                 wiki:"Cendrillon (fromage)",
+                 desc:"Fromage de chèvre bourguignon à la croûte entièrement cendré. Pâte fine et crémeuse, notes douces de noisette.",
+                 en_desc:"Burgundian goat cheese with a fully ash-coated rind. Fine, creamy paste, gentle hazelnut notes.",
+                 accord:"Chablis, Bourgogne Aligoté, Irancy",
+                 anecdote:"Le Cendrillon doit son nom à la cendrée (cendre végétale) qui recouvre entièrement sa surface, lui donnant l'aspect d'un personnage gris sortant d'une cheminée."},
+                {id:87,nom:"Sbrinz (français)",en:"Sbrinz (French)",region:"Franche-Comté",lat:46.78,lng:6.05,lait:"Vache cru",famille:"Pâte extra-dure",aop:false,affinage_min:18,affinage_max:36,emoji:"🧀",
+                 wiki:"Sbrinz",wt:"https://upload.wikimedia.org/wikipedia/commons/d/d6/SbrinzAOC.jpg",
+                 desc:"Fromage à pâte extra-dure à l'affinage très long, cousin français du Sbrinz suisse. Utilisé râpé en cuisine.",
+                 en_desc:"Extra-hard cheese with very long maturation, French cousin of Swiss Sbrinz. Used grated in cooking.",
+                 accord:"Vin jaune, Château-Chalon, bière blonde",
+                 anecdote:"Les fromages à pâte extra-dure de type Sbrinz étaient transportés à dos de mulets dans les Alpes comme monnaie d'échange au Moyen Âge."},
+                {id:88,nom:"Frinault",en:"Frinault",region:"Centre-Val de Loire",lat:47.90,lng:2.00,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:false,affinage_min:3,affinage_max:5,emoji:"🧀",
+                 wiki:"Frinault",wt:"https://androuet.com/images-up/images/fromages/712-Capture-frinault.jpg",
+                 desc:"Fromage cylindrique du Loiret à la croûte lavée et à la pâte souple. Arômes doux et fruités.",
+                 en_desc:"Cylindrical cheese from the Loiret with a washed rind and supple paste. Mild, fruity aromas.",
+                 accord:"Sauvignon de Touraine, Cheverny, Cour-Cheverny",
+                 anecdote:"Le Frinault est l'un des derniers fromages à croûte lavée du val de Loire, une tradition fromagère locale menacée par la concurrence des grands fromages AOP."},
+                {id:89,nom:"Bargkass (Bargkäse)",en:"Bargkass",region:"Alsace",lat:47.97,lng:6.97,lait:"Vache cru",famille:"Pâte pressée non cuite",aop:false,affinage_min:2,affinage_max:6,emoji:"🧀",
+                 wiki:"Bargkass",
+                 desc:"Fromage vosgien à pâte demi-dure, produit dans les chaumes (alpages alsaciens). Pâte ivoire et souple aux arômes herbacés.",
+                 en_desc:"Vosgian semi-hard cheese made in the chaumes (Alsatian alpine pastures). Supple, ivory paste with herbal aromas.",
+                 accord:"Pinot Gris d'Alsace, Riesling, bière ambrée",
+                 anecdote:"Le Bargkass est le fromage traditionnel des chaumes vosgiennes, ces hauts pâturages où les vaches passent l'été. Son nom signifie 'fromage de montagne' en alsacien."},
+                {id:90,nom:"Maroilles Vieux",en:"Maroilles Vieux",region:"Hauts-de-France",lat:50.01,lng:3.75,lait:"Vache pasteurisé",famille:"Pâte molle croûte lavée",aop:true,affinage_min:5,affinage_max:10,emoji:"🧀",
+                 wiki:"Maroilles (fromage)",
+                 desc:"Version plus longuement affinée du Maroilles, au caractère encore plus développé. Croûte rouge-orange très prononcée.",
+                 en_desc:"More matured version of Maroilles, with even more developed character. Highly pronounced red-orange rind.",
+                 accord:"Bière de garde du Nord, Gewurztraminer, Porto",
+                 anecdote:"Le Maroilles est décliné en quatre formats : le carré (standard), la sorbais (¾), la mignon (½) et la quart (¼), tous avec les mêmes critères AOP."}
+              ];
+
+// Données app pour settings — par catégories
+var APPS_CATS = [
+  { cat:'Géographie', apps:[
+    {n:'France Géo Quiz',        id:'6770453028'},
+    {n:'Europe Géo Quiz',        id:'6770458593'},
+    {n:'Amér. Nord GQ',          id:'6770566450'},
+    {n:'Amér. Sud GQ',           id:'6770580053'},
+    {n:'Asie Géo Quiz',          id:'6770857576'},
+    {n:'Afrique Géo Quiz',       id:'6770836826'},
+    {n:'Moyen Orient GQ',        id:'6770848617'},
+    {n:'Europe Hors UE GQ',      id:'6770826067'},
+    {n:'Capitales Europe',       id:'6761421276'},
+    {n:'Pays UE',                id:'6762346365'},
+    {n:'Etats Unis',             id:'6762370541'},
+    {n:'Îles du Monde',          id:'6767810270'},
+    {n:'Détroits',               id:'6762594201'},
+    {n:'Mers & Océans',          id:'6762598304'},
+  ]},
+  { cat:'Histoire France', apps:[
+    {n:'Rois de France',         id:'6761322546'},
+    {n:'Présidents Fr.',         id:'6761324444'},
+    {n:'Maréchaux Napoléon',     id:'6761374601'},
+    {n:'Académie française',     id:'6761334922'},
+    {n:'Panthéon Paris',         id:'6761335268'},
+    {n:'Légion Honneur',         id:'6768320574'},
+    {n:'Basilique St-Denis',     id:'6761709149'},
+    {n:'Sénat Paris',            id:'6761363063'},
+    {n:'Assemblée Paris',        id:'6761361079'},
+    {n:'Conquêtes Sociales',     id:'6762542395'},
+  ]},
+  { cat:'Histoire Monde', apps:[
+    {n:'Nobels de la Paix',      id:'6763569148'},
+    {n:'Peintres Célèbres',      id:'6768068634'},
+    {n:'Architectes Célèbres',   id:'6770302783'},
+    {n:'Athlètes Célèbres',      id:'6770102339'},
+    {n:'Explorateurs',           id:'6768003416'},
+    {n:'Familles Royales',       id:'6762098486'},
+    {n:'Dynasties Royales',      id:'6762208827'},
+    {n:'Dynasties Chinoises',    id:'6762522136'},
+    {n:'Dynasties Russes',       id:'6762452564'},
+    {n:'Présidents US',          id:'6762256169'},
+    {n:'Leaders Européens',      id:'6762263227'},
+    {n:'Institutions Mondiales', id:'6767492967'},
+    {n:'Machines Légendaires',   id:'6767273597'},
+    {n:'Histoire Informatique',  id:'6766260978'},
+    {n:'Histoire Micro-Info',    id:'6766261703'},
+  ]},
+  { cat:'Culture', apps:[
+    {n:'Compositeurs',           id:'6761656628'},
+    {n:'Auteurs de BD',          id:'6767135193'},
+    {n:'Comédie Française',      id:'6761993002'},
+    {n:'Institut de France',     id:'6761769529'},
+    {n:'Arbres de France',       id:'6761685637'},
+    {n:'Iconic Covers',          id:'6762006105'},
+    {n:'Légendes Pop',           id:'6769653710'},
+    {n:'Rosiers du Monde',       id:'6773255479'},
+  ]},
+  { cat:'Paris', apps:[
+    {n:'Musées Paris',           id:'6760890465'},
+    {n:'Théâtres Paris',         id:'6760929391'},
+    {n:'Scènes Paris',           id:'6761293938'},
+    {n:'Cimetières Paris',       id:'6760751055'},
+    {n:'Hôtels Rooftop',         id:'6763507194'},
+  ]},
+  { cat:'Monuments & Transports', apps:[
+    {n:'Aéroports Mythiques',    id:'6764087562'},
+    {n:'Gratte-Ciels',           id:'6763857843'},
+    {n:'Paquebots Liners',       id:'6763076110'},
+    {n:'Avions de Légende',      id:'6763069304'},
+    {n:'Voitures de Légende',    id:'6763071567'},
+    {n:'Trains Mythiques',       id:'6762632868'},
+    {n:'Ponts du Monde',         id:'6762618424'},
+    {n:'Châteaux de la Loire',   id:'6762823383'},
+  ]},
+  { cat:'Jeux', apps:[
+    {n:'App Solitaire',          id:'6769310796'},
+    {n:'Tuiles Numériques',      id:'6768574161'},
+    {n:'Bataille Navale',        id:'6762091681'},
+    {n:'Dames Checkers',         id:'6762076518'},
+    {n:'Flip Board',             id:'6762077646'},
+    {n:'ColorCodeMind',          id:'6762558969'},
+    {n:'Lexigo',                 id:'6762552826'},
+    {n:'Toi ou Moi',             id:'1475884625'},
+  ]},
+  { cat:'Kids', apps:[
+    {n:'Coloriage Kids',         id:'6773000126'},
+    {n:'Mémo Animaux Kids',      id:'6773621753'},
+    {n:'Petit Bilingue Kids',    id:'6773656650'},
+    {n:'Dinosaures Kids',        id:'6773037110'},
+    {n:'Animaux Kids',           id:'6772937635'},
+    {n:'Lettres Kids',           id:'6772548541'},
+    {n:'Chiffres Kids',          id:'6772546976'},
+    {n:'Mahjong Kids',           id:'6772468506'},
+  ]},
+  { cat:'Utilitaires', apps:[
+    {n:'FreshFood Manager',      id:'6759219383'},
+    {n:'Cave Manager',           id:'6760126279'},
+    {n:'MesRestaurants',         id:'6760617965'},
+    {n:'MediSafe',               id:'6761271324'},
+    {n:'Belote Calc',            id:'1483084001'},
+    {n:'Tarots Calc',            id:'1481989301'},
+  ]},
+];
+// liste plate pour compatibilité cache
+var APPS = [];
+APPS_CATS.forEach(function(c){ c.apps.forEach(function(a){ APPS.push(a); }); });
+
+// ==================== STATE ====================
+var currentTab = 'liste';
+var currentFilter = 'tous';
+var currentLangDetail = 'fr';
+var searchQuery = '';
+var currentFromage = null;
+var mapInstance = null;
+var mapInitialized = false;
+var quizScore = 0, quizTotal = 0, quizCurrent = null;
+var urlCache = {};
+
+// ==================== FILTERS ====================
+var FILTERS = [
+  {key:'tous', label:'Tous'},
+  {key:'aop', label:'AOP/AOC'},
+  {key:'vache', label:'🐄 Vache'},
+  {key:'chevre', label:'🐐 Chèvre'},
+  {key:'brebis', label:'🐑 Brebis'},
+  {key:'bleu', label:'Bleu'},
+  {key:'chaud', label:'À fondre'},
+  {key:'normandie', label:'Normandie'},
+  {key:'auvergne', label:'Auvergne'},
+  {key:'savoie', label:'Savoie'},
+  {key:'bourgogne', label:'Bourgogne'},
+  {key:'alsace', label:'Alsace'},
+  {key:'loire', label:'Loire'},
+  {key:'sud', label:'Sud'},
+  {key:'nord', label:'Nord'},
+];
+
+function buildFilters(){
+  var bar = document.getElementById('filters-bar');
+  bar.innerHTML = FILTERS.map(function(f){
+    return '<button class="chip'+(f.key===currentFilter?' active':'')+'" onclick="setFilter(\''+f.key+'\')">'+f.label+'</button>';
+  }).join('');
+}
+
+function setFilter(k){
+  currentFilter = k;
+  buildFilters();
+  renderListe();
+  if(currentTab==='carte') renderCarte();
+}
+
+function matchFilter(f){
+  if(currentFilter==='tous') return true;
+  if(currentFilter==='aop') return f.aop;
+  if(currentFilter==='vache') return f.lait.toLowerCase().includes('vache');
+  if(currentFilter==='chevre') return f.lait.toLowerCase().includes('chèvre') || f.lait.toLowerCase().includes('chevre');
+  if(currentFilter==='brebis') return f.lait.toLowerCase().includes('brebis');
+  if(currentFilter==='bleu') return f.famille.toLowerCase().includes('persillée');
+  if(currentFilter==='chaud') return f.famille.toLowerCase().includes('pressée cuite') || f.nom.toLowerCase().includes('raclette') || f.nom.toLowerCase().includes('emmental');
+  var regions = {normandie:'Normandie',auvergne:'Auvergne',savoie:'Savoie',bourgogne:'Bourgogne',alsace:'Alsace',
+    loire:'Loire',sud:'Occitanie',nord:'Hauts-de-France'};
+  if(regions[currentFilter]) return f.region.toLowerCase().includes(regions[currentFilter].toLowerCase()) || f.region.toLowerCase().includes(currentFilter);
+  return true;
+}
+
+function getFiltered(){
+  return FROMAGES.filter(function(f){
+    var mf = matchFilter(f);
+    if(!mf) return false;
+    if(searchQuery){
+      var q = searchQuery.toLowerCase();
+      return f.nom.toLowerCase().includes(q) || f.region.toLowerCase().includes(q) || f.famille.toLowerCase().includes(q) || f.lait.toLowerCase().includes(q);
+    }
+    return true;
+  });
+}
+
+// ==================== LISTE ====================
+function renderListe(){
+  var list = getFiltered();
+  document.getElementById('count-bar').textContent = list.length + ' fromage' + (list.length>1?'s':'');
+  var html = '';
+  list.forEach(function(f){
+    html += '<div class="fromage-card" onclick="openDetail('+f.id+')">';
+    html += '<div class="card-avatar" id="av-'+f.id+'"><span>'+f.emoji+'</span></div>';
+    html += '<div class="card-info">';
+    html += '<div class="card-name">'+f.nom+'</div>';
+    html += '<div class="card-region">'+f.region+'</div>';
+    html += '<div class="card-badges">';
+    if(f.aop) html += '<span class="badge aop">AOP</span>';
+    html += '<span class="badge">'+f.lait.split(' ')[0]+'</span>';
+    html += '<span class="badge">'+f.famille.split(' ').slice(0,2).join(' ')+'</span>';
+    html += '</div></div></div>';
+  });
+  document.getElementById('liste-container').innerHTML = html;
+  // lazy load images
+  list.forEach(function(f){ loadAvatar(f); });
+}
+
+function loadAvatar(f){
+  if(urlCache['av_'+f.id]) return setAvatarImg(f.id, urlCache['av_'+f.id]);
+  if(f.wt){
+    if(typeof CapacitorHttp!=='undefined'){
+      CapacitorHttp.get({url:f.wt,responseType:'arraybuffer'}).then(function(r){
+        var b64='data:image/jpeg;base64,'+r.data;
+        urlCache['av_'+f.id]=b64;
+        urlCache['hero_'+f.id]=urlCache['hero_'+f.id]||b64;
+        setAvatarImg(f.id,b64);
+      }).catch(function(){
+        urlCache['av_'+f.id]=f.wt;
+        setAvatarImg(f.id,f.wt);
+      });
+    } else {
+      urlCache['av_'+f.id]=f.wt;
+      setAvatarImg(f.id,f.wt);
+    }
+    return;
+  }
+  if(!f.wiki) return;
+  var url = 'https://fr.wikipedia.org/w/api.php?action=query&titles='+f.wiki+'&prop=pageimages&pithumbsize=100&format=json&origin=*';
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    var pages = d.query && d.query.pages;
+    if(!pages) return;
+    var page = Object.values(pages)[0];
+    if(page && page.thumbnail && page.thumbnail.source){
+      urlCache['av_'+f.id] = page.thumbnail.source;
+      setAvatarImg(f.id, page.thumbnail.source);
+    }
+  }).catch(function(){});
+}
+
+function setAvatarImg(id, src){
+  var el = document.getElementById('av-'+id);
+  if(!el) return;
+  el.innerHTML = '<img src="'+src+'" onerror="this.style.display=\'none\'">';
+}
+
+// ==================== CARTE ====================
+function initMap(){
+  if(mapInitialized) return;
+  mapInitialized = true;
+  mapInstance = L.map('map', {zoomControl:true}).setView([46.5, 2.5], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap, CartoDB',maxZoom:18}).addTo(mapInstance);
+  renderCarte();
+}
+
+function renderCarte(){
+  if(!mapInstance) return;
+  mapInstance.eachLayer(function(l){ if(l instanceof L.Marker) mapInstance.removeLayer(l); });
+  var list = getFiltered();
+  list.forEach(function(f){
+    var icon = L.divIcon({html:'<div style="font-size:22px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.8))">'+f.emoji+'</div>',
+      iconSize:[30,30],iconAnchor:[15,15],className:''});
+    var m = L.marker([f.lat, f.lng], {icon:icon}).addTo(mapInstance);
+    m.bindPopup('<div style="font-family:\'Cormorant Garamond\',serif;color:#0f0b06;min-width:140px">'+
+      '<strong style="font-size:15px">'+f.nom+'</strong><br>'+
+      '<span style="font-size:12px;color:#8b3a1a">'+f.region+'</span><br>'+
+      '<span style="font-size:12px">'+f.lait+'</span>'+(f.aop?'<br><span style="font-size:11px;color:#c9a84c">✓ AOP</span>':'')+
+      '</div>');
+    m.on('click', function(){ setTimeout(function(){ openDetail(f.id); }, 400); });
+  });
+}
+
+// ==================== DETAIL ====================
+function openDetail(id){
+  currentFromage = FROMAGES.find(function(f){ return f.id===id; });
+  if(!currentFromage) return;
+  renderDetailContent();
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail(){
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
+function toggleLang(){
+  currentLangDetail = currentLangDetail==='fr' ? 'en' : 'fr';
+  var en = currentLangDetail==='en';
+  document.getElementById('btn-lang-main').textContent = en ? '🇫🇷' : '🇬🇧';
+  // Titre et sous-titre
+  document.getElementById('ui-title').textContent = en ? '🧀 French Cheeses' : '🧀 Fromages de France';
+  document.getElementById('ui-subtitle').textContent = en ? 'Cheese encyclopedia' : 'Encyclopédie fromagère';
+  // Onglets
+  document.getElementById('tab-liste').textContent = en ? 'List' : 'Liste';
+  document.getElementById('tab-carte').textContent = en ? 'Map' : 'Carte';
+  document.getElementById('tab-quiz').textContent = en ? 'Quiz' : 'Quiz';
+  // Search placeholder
+  document.getElementById('search-input').placeholder = en ? 'Search a cheese…' : 'Rechercher un fromage…';
+  // Quiz header
+  document.getElementById('ui-quiz-header').textContent = en ? 'Cheese Quiz' : 'Quiz Fromages';
+  // Fiche detail ouverte
+  if(currentFromage) updateDetailTexts();
+  // Relister / relancer quiz selon onglet actif
+  if(currentTab==='liste') renderListe();
+  if(currentTab==='quiz') nextQuiz();
+}
+
+function renderDetailContent(){
+  var f = currentFromage;
+  document.getElementById('d-title').textContent = f.nom;
+  // Hero : reset puis emoji de fond
+  var hero = document.getElementById('d-hero');
+  hero.innerHTML = '<span id="d-emoji" style="position:absolute;font-size:80px;opacity:0.4">'+f.emoji+'</span><img id="d-hero-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:12px;display:none">';
+  // Charger photo — priorité : wt direct, puis cache, puis wiki
+  if(f.wt){
+    urlCache['hero_'+f.id] = f.wt;
+    urlCache['av_'+f.id] = urlCache['av_'+f.id] || f.wt;
+    var heroImg = document.getElementById('d-hero-img');
+    if(heroImg){
+      if(typeof CapacitorHttp!=='undefined'){
+        CapacitorHttp.get({url:f.wt,responseType:'arraybuffer'}).then(function(r){
+          var b64='data:image/jpeg;base64,'+r.data;
+          urlCache['hero_'+f.id]=b64;
+          urlCache['av_'+f.id]=b64;
+          setHeroImg(b64);
+        }).catch(function(){ setHeroImg(f.wt); });
+      } else {
+        setHeroImg(f.wt);
+      }
+    }
+  } else if(urlCache['hero_'+f.id]){
+    setHeroImg(urlCache['hero_'+f.id]);
+  } else if(f.wiki) {
+    var url = 'https://fr.wikipedia.org/w/api.php?action=query&titles='+f.wiki+'&prop=pageimages&pithumbsize=600&format=json&origin=*';
+    fetch(url).then(function(r){return r.json();}).then(function(d){
+      var pages = d.query && d.query.pages;
+      if(!pages) return;
+      var page = Object.values(pages)[0];
+      if(page && page.thumbnail && page.thumbnail.source){
+        urlCache['hero_'+f.id] = page.thumbnail.source;
+        urlCache['av_'+f.id] = urlCache['av_'+f.id] || page.thumbnail.source;
+        setHeroImg(page.thumbnail.source);
+      }
+    }).catch(function(){});
+  }
+  // Badges
+  var bHtml = '';
+  if(f.aop) bHtml += '<span class="d-badge aop">AOP/AOC</span>';
+  bHtml += '<span class="d-badge">'+f.famille+'</span>';
+  document.getElementById('d-badges').innerHTML = bHtml;
+  // Affinage bar
+  var pct = Math.min(100, Math.round(f.affinage_max / 24 * 100));
+  document.getElementById('d-affinage-bar').style.width = pct+'%';
+  updateDetailTexts();
+}
+
+function setHeroImg(src){
+  var img = document.getElementById('d-hero-img');
+  if(!img) return;
+  img.onload = function(){ img.style.display = 'block'; };
+  img.onerror = function(){ img.style.display = 'none'; };
+  img.src = src;
+}
+
+function updateDetailTexts(){
+  var f = currentFromage;
+  var fr = currentLangDetail==='fr';
+  document.getElementById('d-label-region').textContent = fr ? 'Région' : 'Region';
+  document.getElementById('d-label-lait').textContent = fr ? 'Lait' : 'Milk';
+  document.getElementById('d-label-famille').textContent = fr ? 'Famille' : 'Family';
+  document.getElementById('d-label-affinage').textContent = fr ? 'Affinage' : 'Maturation';
+  document.getElementById('d-label-desc').textContent = fr ? 'Description' : 'Description';
+  document.getElementById('d-label-accord').textContent = fr ? 'Accord' : 'Pairing';
+  document.getElementById('d-label-anecdote').textContent = fr ? 'Le saviez-vous ?' : 'Did you know?';
+  document.getElementById('d-region').textContent = f.region;
+  document.getElementById('d-lait').textContent = f.lait;
+  document.getElementById('d-famille').textContent = f.famille;
+  var affinageMin = f.affinage_min || 1;
+  var affinageMax = f.affinage_max || 4;
+  document.getElementById('d-affinage').textContent = affinageMin+' – '+affinageMax+(fr?' mois':' months');
+  document.getElementById('d-bio').textContent = fr ? f.desc : (f.en_desc || f.desc);
+  document.getElementById('d-accord').textContent = f.accord;
+  document.getElementById('d-anecdote').textContent = f.anecdote;
+}
+
+// ==================== SEARCH ====================
+document.getElementById('search-input').oninput = function(){
+  searchQuery = this.value.trim();
+  document.getElementById('btn-clear').style.display = searchQuery ? 'flex' : 'none';
+  if(currentTab==='liste') renderListe();
+};
+
+function clearSearch(){
+  searchQuery = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('btn-clear').style.display = 'none';
+  if(currentTab==='liste') renderListe();
+}
+
+// ==================== TABS ====================
+function switchTab(tab, el){
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('panel-'+tab).classList.add('active');
+  if(tab==='carte'){ setTimeout(initMap, 100); }
+  if(tab==='quiz') initQuiz();
+}
+
+// ==================== QUIZ ====================
+function initQuiz(){
+  quizScore = 0; quizTotal = 0;
+  document.getElementById('quiz-score').textContent = '';
+  nextQuiz();
+}
+
+function nextQuiz(){
+  var en = currentLangDetail==='en';
+  var list = FROMAGES.filter(function(f){ return f.aop; });
+  var idx = Math.floor(Math.random()*list.length);
+  quizCurrent = list[idx];
+  var types = ['region','lait','famille'];
+  var qType = types[Math.floor(Math.random()*types.length)];
+  var question = '';
+  var correct = '';
+  var nom = quizCurrent.nom;
+  if(qType==='region'){
+    question = en ? 'Which region does '+nom+' come from?' : 'De quelle région vient le '+nom+' ?';
+    correct = quizCurrent.region;
+  } else if(qType==='lait'){
+    question = en ? 'Which milk is '+nom+' made from?' : 'Avec quel lait est fabriqué le '+nom+' ?';
+    correct = quizCurrent.lait.split(' ')[0];
+  } else {
+    question = en ? 'Which family does '+nom+' belong to?' : 'À quelle famille appartient le '+nom+' ?';
+    correct = quizCurrent.famille.split(' ').slice(0,3).join(' ');
+  }
+
+  var wrongs = [];
+  var pool = FROMAGES.filter(function(f){ return f.id !== quizCurrent.id; });
+  pool.sort(function(){ return Math.random()-0.5; });
+  pool.forEach(function(f){
+    if(wrongs.length>=3) return;
+    var w;
+    if(qType==='region') w = f.region;
+    else if(qType==='lait') w = f.lait.split(' ')[0];
+    else w = f.famille.split(' ').slice(0,3).join(' ');
+    if(w !== correct && !wrongs.includes(w)) wrongs.push(w);
+  });
+  var choices = [correct].concat(wrongs.slice(0,3));
+  choices.sort(function(){ return Math.random()-0.5; });
+
+  var imgHtml = urlCache['hero_'+quizCurrent.id]
+    ? '<img src="'+urlCache['hero_'+quizCurrent.id]+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px">'
+    : quizCurrent.emoji;
+
+  var html = '<div class="quiz-question">';
+  html += '<div class="quiz-img">'+imgHtml+'</div>';
+  html += '<div class="quiz-q">'+question+'</div>';
+  html += '</div>';
+  html += '<div class="quiz-choices">';
+  choices.forEach(function(c){
+    html += '<button class="quiz-btn" onclick="answerQuiz(this,\''+c.replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\',\''+correct.replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\')" >'+c+'</button>';
+  });
+  html += '</div>';
+  html += '<button class="quiz-next" id="quiz-next-btn" onclick="nextQuiz()">'+(en ? 'Next question →' : 'Question suivante →')+'</button>';
+  document.getElementById('quiz-container').innerHTML = html;
+  document.getElementById('quiz-score').textContent = (en ? 'Score: ' : 'Score : ')+quizScore+' / '+quizTotal;
+}
+
+function answerQuiz(btn, chosen, correct){
+  var en = currentLangDetail==='en';
+  quizTotal++;
+  var isCorrect = chosen === correct;
+  if(isCorrect){ quizScore++; btn.classList.add('correct'); }
+  else {
+    btn.classList.add('wrong');
+    document.querySelectorAll('.quiz-btn').forEach(function(b){
+      if(b.textContent === correct) b.classList.add('correct');
+    });
+  }
+  document.querySelectorAll('.quiz-btn').forEach(function(b){ b.disabled = true; });
+  document.getElementById('quiz-next-btn').style.display = 'block';
+  document.getElementById('quiz-score').textContent = (en ? 'Score: ' : 'Score : ')+quizScore+' / '+quizTotal;
+}
+
+// ==================== SETTINGS ====================
+var settingsCache = {};
+function openSettings(){
+  document.getElementById('settings-overlay').classList.add('open');
+  renderSettings();
+}
+function closeSettings(){
+  document.getElementById('settings-overlay').classList.remove('open');
+  // deselect tab-apps highlight
+  document.getElementById('tab-apps').classList.remove('active');
+}
+function highlightTab(el){
+  // just briefly highlight, don't stay active
+  el.classList.add('active');
+}
+function renderSettings(){
+  var body = document.getElementById('settings-body');
+  if(body.dataset.rendered){
+    APPS.forEach(function(a){
+      if(settingsCache[a.id]){
+        var img = document.getElementById('icon-'+a.id);
+        if(img && !img.src.includes('mzstatic')) img.src = settingsCache[a.id];
+      }
+    });
+    return;
+  }
+  body.dataset.rendered = '1';
+  var html = '';
+  APPS_CATS.forEach(function(cat){
+    html += '<div class="settings-section-title">'+cat.cat+'</div>';
+    html += '<div class="apps-grid">';
+    cat.apps.forEach(function(a){
+      html += '<div class="app-item" onclick="window.open(\'https://apps.apple.com/app/id'+a.id+'\',\'_system\')">';
+      html += '<div class="app-icon"><img id="icon-'+a.id+'" alt="'+a.n+'" style="width:56px;height:56px;border-radius:13px;display:block"></div>';
+      html += '<div class="app-name">'+a.n+'</div></div>';
+    });
+    html += '</div>';
+  });
+  html += '<img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/fr-fr" class="badge-store" alt="App Store">';
+  body.innerHTML = html;
+  APPS.forEach(function(a){ loadAppIcon(a.id); });
+}
+function loadAppIcon(numId){
+  if(!numId) return;
+  if(settingsCache[numId]){
+    var img = document.getElementById('icon-'+numId);
+    if(img) img.src = settingsCache[numId];
+    return;
+  }
+  window['itcb'+numId] = function(d){
+    if(d && d.results && d.results[0]){
+      var src = d.results[0].artworkUrl60;
+      settingsCache[numId] = src;
+      var img = document.getElementById('icon-'+numId);
+      if(img) img.src = src;
+    }
+  };
+  var s = document.createElement('script');
+  s.src = 'https://itunes.apple.com/lookup?id='+numId+'&callback=itcb'+numId;
+  document.body.appendChild(s);
+}
+
+// ==================== INIT ====================
+buildFilters();
+renderListe();
+</script>
+</body>
+</html>

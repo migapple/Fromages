@@ -1,0 +1,26 @@
+{
+  "appId": "com.michel.garlandat.fromagesdefrance",
+  "appName": "Fromages de France",
+  "webDir": "App/public",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#070510",
+  "ios": {
+    "backgroundColor": "#070510",
+    "contentInset": "automatic",
+    "scrollEnabled": false
+  },
+  "server": {
+    "allowNavigation": ["*.wikimedia.org", "*.wikipedia.org"]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    },
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "Geolocation": {
+      "permissions": ["location"]
+    }
+  }
+}
